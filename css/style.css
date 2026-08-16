@@ -1,0 +1,1730 @@
+/* KeasyFit Stylesheet - Diseño Deportivo de Alto Rendimiento */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap');
+
+:root {
+  /* Paleta de colores */
+  --bg-dark: #08090c;
+  --bg-card: rgba(18, 20, 26, 0.75);
+  --bg-card-hover: rgba(26, 29, 38, 0.85);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(204, 255, 0, 0.3);
+  
+  --primary: #ccff00;       /* Verde Voltio */
+  --primary-glow: rgba(204, 255, 0, 0.4);
+  --secondary: #ff5a00;     /* Naranja Fuego */
+  --secondary-glow: rgba(255, 90, 0, 0.4);
+  --accent: #00f0ff;        /* Cian Eléctrico */
+  --accent-glow: rgba(0, 240, 255, 0.4);
+  
+  --text-main: #f3f4f6;
+  --text-muted: #8e9aa8;
+  --text-dark: #0a0b0e;
+  
+  --sidebar-width: 260px;
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  --shadow-neon: 0 0 15px var(--primary-glow);
+}
+
+/* Reset de estilos */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(204, 255, 0, 0.03) 0px, transparent 50%),
+    radial-gradient(at 90% 90%, rgba(255, 90, 0, 0.03) 0px, transparent 50%),
+    radial-gradient(at 50% 10%, rgba(0, 240, 255, 0.02) 0px, transparent 50%);
+}
+
+/* Estructura SPA - Layout Principal */
+.app-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Barra Lateral (Sidebar) */
+.sidebar {
+  width: var(--sidebar-width);
+  background: rgba(12, 14, 18, 0.95);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1.5rem;
+  position: fixed;
+  height: 100vh;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 3rem;
+}
+
+.brand-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--text-main);
+  text-transform: uppercase;
+}
+
+.brand-title span {
+  color: var(--primary);
+  text-shadow: 0 0 10px rgba(204, 255, 0, 0.5);
+}
+
+.brand-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 0.2rem;
+}
+
+.nav-menu {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  flex-grow: 1;
+}
+
+.nav-item button {
+  width: 100%;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 0.9rem 1.2rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-align: left;
+  transition: var(--transition-fast);
+}
+
+.nav-item button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  transition: var(--transition-fast);
+}
+
+.nav-item button:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-item.active button {
+  color: var(--text-dark);
+  background: var(--primary);
+  font-weight: 700;
+  border: 1px solid var(--primary);
+  box-shadow: 0 4px 15px rgba(204, 255, 0, 0.3);
+}
+
+.nav-item.active button svg {
+  fill: var(--text-dark);
+}
+
+.user-profile {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Área de Contenido Principal */
+.main-content {
+  flex-grow: 1;
+  margin-left: var(--sidebar-width);
+  padding: 2.5rem;
+  width: calc(100% - var(--sidebar-width));
+  min-height: 100vh;
+}
+
+/* Vistas (Pages) */
+.page-view {
+  display: none;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.page-view.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Estilos de Título de Páginas */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.page-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.page-title span {
+  color: var(--primary);
+}
+
+.page-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+/* Tarjetas Deportivas (Cards) */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.8rem;
+  backdrop-filter: blur(12px);
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.card:hover {
+  border-color: var(--border-active);
+  transform: translateY(-2px);
+}
+
+/* Dashboard Widgets Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.widget {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.widget-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.widget-icon.primary {
+  background: rgba(204, 255, 0, 0.1);
+  color: var(--primary);
+}
+
+.widget-icon.secondary {
+  background: rgba(255, 90, 0, 0.1);
+  color: var(--secondary);
+}
+
+.widget-icon.accent {
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--accent);
+}
+
+.widget-icon svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+.widget-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.widget-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+/* Dashboard Layout Secundario */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.5rem;
+}
+
+/* Sección de Motivación InBody */
+.motivation-banner {
+  background: linear-gradient(135deg, rgba(204, 255, 0, 0.08) 0%, rgba(255, 90, 0, 0.08) 100%);
+  border: 1px solid var(--border-active);
+  position: relative;
+  overflow: hidden;
+}
+
+.motivation-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to bottom, var(--primary), var(--secondary));
+}
+
+.motivation-content h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+
+.motivation-desc {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Tarjeta Entrenar Hoy */
+.today-workout-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 220px;
+}
+
+.today-workout-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.workout-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.workout-stats-short {
+  display: flex;
+  gap: 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+/* Botones Deportivos */
+.btn {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 0.8rem 1.6rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  transition: var(--transition-fast);
+  font-family: 'Inter', sans-serif;
+  text-decoration: none;
+}
+
+.btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--text-dark);
+  border: 1px solid var(--primary);
+  box-shadow: 0 4px 15px rgba(204, 255, 0, 0.2);
+}
+
+.btn-primary:hover {
+  background: #bceb00;
+  box-shadow: 0 6px 20px rgba(204, 255, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--secondary);
+  color: var(--text-main);
+  border: 1px solid var(--secondary);
+  box-shadow: 0 4px 15px rgba(255, 90, 0, 0.2);
+}
+
+.btn-secondary:hover {
+  background: #e04f00;
+  box-shadow: 0 6px 20px rgba(255, 90, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-accent {
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.btn-accent:hover {
+  background: var(--accent);
+  color: var(--text-dark);
+  box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+
+/* Rutinas Rutinario List */
+.routines-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.routine-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.routine-exercises-preview {
+  margin: 1.2rem 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.routine-exercises-preview li {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.routine-exercises-preview li::before {
+  content: '•';
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* Ficha de Entrenamiento Activo (Focus Mode) */
+.workout-focus-container {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.exercise-player-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.player-exercise-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.player-exercise-meta {
+  color: var(--accent);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem;
+  margin-top: 0.2rem;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+  height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.player-logger {
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.5rem;
+}
+
+.logger-title {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.logger-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 35px 80px 1fr 1fr;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.set-check-label {
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.set-check-label input {
+  display: none;
+}
+
+.set-check-custom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  background: rgba(10, 11, 14, 0.8);
+  border: 1.5px solid var(--border-color);
+  border-radius: 5px;
+  transition: all var(--transition-fast);
+}
+
+.set-check-label input:checked + .set-check-custom {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 8px rgba(204, 255, 0, 0.4);
+}
+
+.set-check-custom::after {
+  content: '';
+  position: absolute;
+  display: none;
+  left: 6px;
+  top: 2px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--text-dark);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.set-check-label input:checked + .set-check-custom::after {
+  display: block;
+}
+
+.set-row.completed {
+  opacity: 0.35;
+  background: rgba(255, 255, 255, 0.005) !important;
+  border-color: transparent !important;
+}
+
+.set-row.completed .set-label {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.set-row.completed .form-input {
+  border-color: transparent !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.set-row.active {
+  border-color: var(--border-active);
+  background: rgba(204, 255, 0, 0.02);
+}
+
+.set-label {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.set-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.set-input-group span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.form-input {
+  width: 80px;
+  background: rgba(10, 11, 14, 0.8);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.95rem;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Ilustraciones Musculares */
+.illustration-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.muscle-diagrams-container {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  margin: 1rem 0;
+  gap: 1rem;
+}
+
+.muscle-svg {
+  width: 45%;
+  max-height: 250px;
+}
+
+.muscle-group path {
+  transition: fill 0.3s ease;
+}
+
+/* Efectos de Iluminación de Músculos */
+.muscle-svg .active-muscle {
+  fill: url(#glow);
+  stroke: var(--primary);
+  stroke-width: 1.5px;
+  filter: drop-shadow(0 0 5px var(--primary-glow));
+}
+
+.exercise-instructions {
+  background: rgba(10, 11, 14, 0.5);
+  border: 1px solid var(--border-color);
+  padding: 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  width: 100%;
+}
+
+.instructions-title {
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.instructions-danger {
+  border-left: 2px solid var(--secondary);
+  padding-left: 0.8rem;
+  margin-top: 0.8rem;
+  font-style: italic;
+  color: #ff9966;
+}
+
+/* Panel del Temporizador de Descanso */
+.rest-timer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(8, 9, 12, 0.95);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.rest-timer-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.timer-box {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  background: var(--bg-card);
+  padding: 3rem 4rem;
+  border-radius: 24px;
+  border: 1px solid var(--border-active);
+  box-shadow: 0 0 40px rgba(204, 255, 0, 0.1);
+}
+
+.timer-ring-container {
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+
+.timer-number {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: var(--primary);
+  text-shadow: 0 0 15px rgba(204, 255, 0, 0.4);
+}
+
+.timer-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Asistente Personal de Carga */
+.coach-recommendation-box {
+  background: rgba(204, 255, 0, 0.05);
+  border: 1px solid var(--border-active);
+  padding: 1rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.coach-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dark);
+  font-weight: bold;
+}
+
+.coach-text {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-main);
+  flex-grow: 1;
+}
+
+.coach-text strong {
+  color: var(--primary);
+}
+
+/* Barra de progreso de entrenamiento */
+.workout-progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.workout-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(to right, var(--primary), var(--accent));
+  transition: width 0.3s ease;
+}
+
+/* Feedback de Dificultad */
+.difficulty-selector {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+.difficulty-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 0.6rem 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: var(--transition-fast);
+  text-align: center;
+}
+
+.difficulty-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.difficulty-btn.selected[data-diff="facil"] {
+  background: rgba(0, 240, 255, 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.difficulty-btn.selected[data-diff="adecuado"] {
+  background: rgba(204, 255, 0, 0.15);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.difficulty-btn.selected[data-diff="duro"] {
+  background: rgba(255, 90, 0, 0.15);
+  color: var(--secondary);
+  border-color: var(--secondary);
+}
+
+/* Módulo de Métricas (Salud/Peso) */
+.metrics-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1.5rem;
+}
+
+.metrics-form-card {
+  height: fit-content;
+}
+
+.form-group {
+  margin-bottom: 1.2rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+}
+
+.form-control-full {
+  width: 100%;
+  background: rgba(10, 11, 14, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-main);
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  font-family: 'Inter', sans-serif;
+  transition: var(--transition-fast);
+}
+
+.form-control-full:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 10px rgba(204, 255, 0, 0.15);
+}
+
+.metrics-history-list {
+  margin-top: 1.5rem;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.metric-history-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+}
+
+.metric-history-item:last-child {
+  border-bottom: none;
+}
+
+.metric-date {
+  color: var(--text-muted);
+}
+
+.metric-values {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+}
+
+/* Pestaña de Informes (Reports) */
+.reports-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+
+.charts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.chart-card {
+  min-height: 350px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.chart-select {
+  background: rgba(10, 11, 14, 0.8);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+}
+
+/* Editor de Rutina (Manage Routines) */
+.editor-routine-selector {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.editor-table-container {
+  overflow-x: auto;
+}
+
+.editor-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.editor-table th, .editor-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.editor-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.editor-table td {
+  font-size: 0.9rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 6px;
+  transition: var(--transition-fast);
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.btn-icon.danger:hover {
+  color: #ff3b30;
+  background: rgba(255, 59, 48, 0.1);
+}
+
+/* Diálogo Modal de Añadir Ejercicio */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(8, 9, 12, 0.85);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  border-radius: 16px;
+  width: 500px;
+  max-width: 90%;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+/* Pestaña de Configuración / Alertas */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1.5rem;
+}
+
+.days-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.day-checkbox-label {
+  cursor: pointer;
+}
+
+.day-checkbox-label input {
+  display: none;
+}
+
+.day-tag {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: var(--transition-fast);
+}
+
+.day-checkbox-label input:checked + .day-tag {
+  background: var(--primary);
+  color: var(--text-dark);
+  border-color: var(--primary);
+  box-shadow: 0 4px 10px rgba(204, 255, 0, 0.2);
+}
+
+/* Barra de Alertas / Notificaciones */
+.alert-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 240, 255, 0.03);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  animation: pulseCyan 3s infinite alternate;
+}
+
+@keyframes pulseCyan {
+  0% { border-color: rgba(0, 240, 255, 0.1); box-shadow: 0 0 5px rgba(0, 240, 255, 0.02); }
+  100% { border-color: rgba(0, 240, 255, 0.35); box-shadow: 0 0 15px rgba(0, 240, 255, 0.1); }
+}
+
+.alert-bar-text {
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.alert-bar-text strong {
+  color: var(--accent);
+}
+
+/* Responsive (Pantallas Medianas y Móviles) */
+@media (max-width: 992px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .workout-focus-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .reports-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metrics-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+    padding-bottom: 80px; /* Espacio para barra de navegación móvil */
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.2rem;
+  }
+  
+  .brand {
+    margin-bottom: 1rem;
+    align-items: center;
+    width: 100%;
+  }
+  
+  /* Ocultar menú normal en móvil y convertir en barra de navegación inferior */
+  .sidebar .nav-menu {
+    display: none;
+  }
+  
+  .sidebar .user-profile {
+    display: none;
+  }
+  
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 1.5rem;
+  }
+  
+  .page-header {
+    margin-bottom: 1.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  /* Barra de Navegación Inferior Móvil (Sticky Bottom Nav) */
+  .mobile-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(10, 12, 16, 0.95);
+    border-top: 1px solid var(--border-color);
+    z-index: 999;
+    backdrop-filter: blur(12px);
+    justify-content: space-around;
+    padding: 0.6rem 0.2rem;
+  }
+  
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    gap: 0.3rem;
+  }
+  
+  .mobile-nav-item svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+  }
+  
+  .mobile-nav-item.active {
+    color: var(--primary);
+  }
+}
+
+/* Ocultar móvil por defecto */
+.mobile-nav {
+  display: none;
+}
+
+/* --- MEJORAS DE MÉTRICAS AVANZADAS E INFORMES --- */
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 576px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tabla comparativa de composición corporal InBody */
+.comparison-table-wrapper {
+  overflow-x: auto;
+  margin-top: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.comparison-table th, .comparison-table td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+}
+
+.comparison-table th:last-child, .comparison-table td:last-child {
+  border-right: none;
+}
+
+.comparison-table th {
+  background: rgba(12, 14, 18, 0.6);
+  font-family: 'Orbitron', sans-serif;
+  color: var(--text-main);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.comparison-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.comparison-table td.metric-label-col {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  background: rgba(10, 11, 14, 0.3);
+}
+
+/* Células Delta de Variación */
+.delta-cell {
+  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.delta-cell.positive-improvement {
+  color: var(--primary);
+  text-shadow: 0 0 10px rgba(204, 255, 0, 0.2);
+}
+
+.delta-cell.negative-regression {
+  color: #ff3b30;
+  text-shadow: 0 0 10px rgba(255, 59, 48, 0.2);
+}
+
+.delta-cell.neutral-stable {
+  color: var(--text-muted);
+}
+
+/* Tabla General de Progresión de Fuerza del Gimnasio */
+.general-report-table-wrapper {
+  overflow-x: auto;
+  margin-top: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.general-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.general-report-table th, .general-report-table td {
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.general-report-table th {
+  background: rgba(12, 14, 18, 0.8);
+  font-family: 'Orbitron', sans-serif;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+
+.general-report-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.general-report-table td.muscle-badge-col span {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.muscle-badge-back { background: rgba(0, 240, 255, 0.1); color: var(--accent); }
+.muscle-badge-biceps { background: rgba(204, 255, 0, 0.1); color: var(--primary); }
+.muscle-badge-triceps { background: rgba(255, 90, 0, 0.1); color: var(--secondary); }
+.muscle-badge-chest { background: rgba(0, 240, 255, 0.15); color: #00f0ff; }
+.muscle-badge-shoulders { background: rgba(159, 122, 234, 0.15); color: #9f7aea; }
+.muscle-badge-legs { background: rgba(236, 64, 122, 0.15); color: #ec407a; }
+.muscle-badge-cardio { background: rgba(74, 85, 104, 0.3); color: #cbd5e0; }
+
+.difficulty-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.difficulty-badge.facil { background: rgba(0, 240, 255, 0.15); color: var(--accent); }
+.difficulty-badge.adecuado { background: rgba(204, 255, 0, 0.15); color: var(--primary); }
+.difficulty-badge.duro { background: rgba(255, 90, 0, 0.15); color: var(--secondary); }
+
+/* --- ESTILOS DEL ESCÁNER OCR DE CAPTURAS --- */
+
+.ocr-drop-zone {
+  border: 2px dashed rgba(0, 240, 255, 0.2);
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ocr-drop-zone:hover, .ocr-drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(0, 240, 255, 0.03);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.08);
+}
+
+.ocr-upload-icon {
+  width: 38px;
+  height: 38px;
+  fill: var(--accent);
+  margin-bottom: 0.6rem;
+  filter: drop-shadow(0 0 5px var(--accent-glow));
+  transition: transform 0.2s ease;
+}
+
+.ocr-drop-zone:hover .ocr-upload-icon {
+  transform: translateY(-2px);
+}
+
+.ocr-text-main {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.2rem;
+}
+
+.ocr-text-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Animación flash verde neón para inputs auto-rellenados */
+@keyframes flashGreen {
+  0% { 
+    background-color: rgba(204, 255, 0, 0.3); 
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(204, 255, 0, 0.3);
+  }
+  100% { 
+    background-color: rgba(10, 11, 14, 0.6); 
+    border-color: var(--border-color);
+    box-shadow: none;
+  }
+}
+
+.flash-success-neon {
+  animation: flashGreen 2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* ==========================================
+   10. HOJA DE ESTILOS DE IMPRESIÓN (PDF)
+   ========================================== */
+
+@media print {
+  /* Forzar colores de fondo de impresión y texto negro */
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    font-family: 'Inter', sans-serif !important;
+  }
+  
+  /* Ocultar interfaz web interactiva no relevante para el informe */
+  .sidebar, 
+  .mobile-nav, 
+  .alert-bar, 
+  .btn-group-no-print, 
+  .chart-select, 
+  .ocr-drop-zone, 
+  #ocr-progress-container, 
+  .modal-overlay, 
+  #alert-permission-bar,
+  #weight-logger-form,
+  .metrics-form-card h3,
+  .chart-header select {
+    display: none !important;
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  /* Mostrar y forzar solo la pestaña de informes al imprimir */
+  .page-view {
+    display: none !important;
+  }
+  
+  #reports-view {
+    display: block !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  
+  /* Formatear tarjetas como marcos simples y legibles */
+  .card {
+    background: none !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    margin-bottom: 25px !important;
+    padding: 1.5rem !important;
+    page-break-inside: avoid; /* Evita que las tarjetas se corten a mitad de página */
+  }
+  
+  .page-title {
+    color: #000000 !important;
+    font-size: 24pt !important;
+    text-align: center;
+    margin-bottom: 5px;
+    font-family: 'Orbitron', sans-serif !important;
+  }
+  
+  .page-title span {
+    color: #000000 !important;
+    border-bottom: 3px solid #000000;
+  }
+  
+  .page-subtitle {
+    text-align: center;
+    color: #444444 !important;
+    font-size: 10pt !important;
+    margin-bottom: 35px;
+  }
+  
+  /* Estilo de Tablas en el PDF */
+  .comparison-table, 
+  .general-report-table {
+    width: 100% !important;
+    color: #000000 !important;
+    border-collapse: collapse !important;
+  }
+  
+  .comparison-table th, 
+  .general-report-table th {
+    background: #f0f0f0 !important;
+    color: #000000 !important;
+    border: 1px solid #ccc !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-size: 8pt !important;
+  }
+  
+  .comparison-table td, 
+  .general-report-table td {
+    border: 1px solid #ccc !important;
+    background: none !important;
+    color: #000000 !important;
+    font-size: 8pt !important;
+  }
+  
+  .comparison-table td.metric-label-col {
+    background: #fafafa !important;
+    color: #000000 !important;
+    font-weight: bold;
+  }
+  
+  /* Variaciones de colores impresas con alto contraste */
+  .delta-cell.positive-improvement {
+    color: #1b5e20 !important; /* Verde oscuro (óptimo para papel) */
+    text-shadow: none !important;
+  }
+  
+  .delta-cell.negative-regression {
+    color: #b71c1c !important; /* Rojo oscuro (óptimo para papel) */
+    text-shadow: none !important;
+  }
+  
+  .delta-cell.neutral-stable {
+    color: #444444 !important;
+  }
+  
+  /* Badges e indicadores en grises limpios */
+  .general-report-table td.muscle-badge-col span {
+    background: #f0f0f0 !important;
+    color: #000000 !important;
+    border: 1px solid #bbb !important;
+  }
+  
+  .difficulty-badge {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #ccc !important;
+  }
+  
+  /* Distribución de gráficos */
+  .reports-grid {
+    display: block !important;
+  }
+  
+  .charts-container {
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  .chart-card {
+    page-break-inside: avoid;
+    height: 380px !important; /* Asegura espacio adecuado para pintar Chart.js */
+  }
+}
+
+/* --- ESTILOS DE LA TARJETA PORTADA DE VÍDEO (ANTIFALLOS YOUTUBE) --- */
+
+.video-cover-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 250px;
+  background: linear-gradient(135deg, rgba(20, 21, 26, 0.96), rgba(10, 11, 14, 0.98)), 
+              url('https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=600&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all var(--transition-fast);
+  overflow: hidden;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.video-cover-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.video-play-button {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.video-play-button svg {
+  margin-left: 3px; /* visual balance adjustment */
+  transition: transform 0.2s ease;
+}
+
+.video-cover-card:hover .video-play-button {
+  background: var(--primary);
+  box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);
+  transform: scale(1.08);
+}
+
+.video-cover-card:hover .video-play-button svg {
+  fill: var(--text-dark) !important;
+}
+
+.video-cover-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.video-cover-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+/* Ocultar la portada al imprimir el PDF */
+@media print {
+  .video-cover-card {
+    display: none !important;
+  }
+}
+
+
+
