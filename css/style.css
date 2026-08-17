@@ -1198,7 +1198,7 @@ body {
 }
 
 @media (max-width: 768px) {
-  body {
+  .app-container {
     flex-direction: column;
     padding-bottom: 80px; /* Espacio para barra de navegación móvil */
   }
