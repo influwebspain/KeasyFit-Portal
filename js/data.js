@@ -368,11 +368,5 @@ const GYM_MOTIVATIONS = [
 ];
 
 // Historial inicial de báscula corporal de Rafael Carcel
-const INITIAL_WEIGHT_HISTORY = [
-  { date: "2026-04-27", weight: 147.7, bmi: 48.8, fat: 42.7, muscle: 107.8, leanMass: 84.6, visceral: 20, water: 41.9, bodyAge: 41 },
-  { date: "2026-05-11", weight: 146.2, bmi: 48.3, fat: 42.1, muscle: 107.9, leanMass: 84.7, visceral: 19, water: 42.5, bodyAge: 41 },
-  { date: "2026-05-25", weight: 144.5, bmi: 47.7, fat: 41.5, muscle: 108.0, leanMass: 84.8, visceral: 19, water: 43.1, bodyAge: 40 },
-  { date: "2026-06-08", weight: 142.8, bmi: 47.2, fat: 40.8, muscle: 108.2, leanMass: 85.0, visceral: 18, water: 43.6, bodyAge: 40 },
-  { date: "2026-06-22", weight: 141.0, bmi: 46.6, fat: 40.0, muscle: 108.5, leanMass: 85.2, visceral: 18, water: 44.2, bodyAge: 39 }
-];
+const INITIAL_WEIGHT_HISTORY = [];
 

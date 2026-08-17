@@ -23,9 +23,16 @@ document.addEventListener('DOMContentLoaded', () => {
   initApp();
 });
 
-function initApp() {
-  // Cargar datos desde localStorage o usar iniciales
-  loadStateFromStorage();
+async function initApp() {
+  // Esperar a que el módulo de Firebase cargue (max 1 segundo)
+  let retries = 0;
+  while (!window.firebaseDb && retries < 10) {
+    await new Promise(r => setTimeout(r, 100));
+    retries++;
+  }
+
+  // Cargar datos desde Firebase o usar localStorage como fallback
+  await loadStateFromStorage();
 
   // Configurar listeners de la navegación
   setupNavigation();
@@ -47,43 +54,85 @@ function initApp() {
 }
 
 // Carga del estado y datos locales
-function loadStateFromStorage() {
-  const savedRoutines = localStorage.getItem('kf_routines');
-  const savedHistory = localStorage.getItem('kf_history');
-  const savedWeight = localStorage.getItem('kf_weight');
-  const savedSettings = localStorage.getItem('kf_settings');
+async function loadStateFromStorage() {
+  let savedRoutines = null;
+  let savedHistory = null;
+  let savedWeight = null;
+  let savedSettings = null;
+
+  try {
+    // Intentar cargar desde Firebase primero (si firebase-init ya cargó window.firebaseDb)
+    // Es posible que el script de módulo tarde un poco, usamos un pequeño delay si es necesario.
+    // Como firebase-init usa type="module", debemos esperar a que inicialice.
+    // Simplificado para este caso: si está disponible, cargar.
+    if (window.firebaseDb) {
+      const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
+      const docSnap = await window.firebaseGetDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        savedRoutines = data.routines;
+        savedHistory = data.history;
+        savedWeight = data.weight;
+        savedSettings = data.settings;
+      }
+    }
+  } catch (error) {
+    console.error("Error cargando datos de Firebase:", error);
+  }
+
+  // Fallback a localStorage si Firebase falló o no tenía datos
+  if (!savedRoutines) savedRoutines = localStorage.getItem('kf_routines');
+  if (!savedHistory) savedHistory = localStorage.getItem('kf_history');
+  if (!savedWeight) savedWeight = localStorage.getItem('kf_weight');
+  if (!savedSettings) savedSettings = localStorage.getItem('kf_settings');
+
+  // Parsear si vienen de localStorage (strings)
+  if (typeof savedRoutines === 'string') savedRoutines = JSON.parse(savedRoutines);
+  if (typeof savedHistory === 'string') savedHistory = JSON.parse(savedHistory);
+  if (typeof savedWeight === 'string') savedWeight = JSON.parse(savedWeight);
+  if (typeof savedSettings === 'string') savedSettings = JSON.parse(savedSettings);
 
   // Inicializar rutinas
   if (savedRoutines) {
-    state.routines = JSON.parse(savedRoutines);
+    state.routines = savedRoutines;
   } else {
     state.routines = INITIAL_ROUTINES;
-    localStorage.setItem('kf_routines', JSON.stringify(state.routines));
+    saveStateToStorage('routines');
   }
 
   // Inicializar historial de entrenamiento
   if (savedHistory) {
-    state.history = JSON.parse(savedHistory);
+    state.history = savedHistory;
   } else {
     state.history = [];
   }
 
   // Inicializar historial de peso con los registros de la báscula InBody
   if (savedWeight) {
-    state.weightHistory = JSON.parse(savedWeight);
+    state.weightHistory = savedWeight;
+    
+    // Limpieza automática de datos ficticios previos
+    const fakeDates = ["2026-04-27", "2026-05-11", "2026-05-25", "2026-06-08", "2026-06-22"];
+    const originalLength = state.weightHistory.length;
+    state.weightHistory = state.weightHistory.filter(w => !fakeDates.includes(w.date));
+    
+    if (state.weightHistory.length !== originalLength) {
+      saveStateToStorage('weight');
+    }
   } else {
     state.weightHistory = INITIAL_WEIGHT_HISTORY;
-    localStorage.setItem('kf_weight', JSON.stringify(state.weightHistory));
+    saveStateToStorage('weight');
   }
 
   // Inicializar configuración
   if (savedSettings) {
-    state.settings = JSON.parse(savedSettings);
+    state.settings = savedSettings;
   }
 }
 
-// Guardado de datos
-function saveStateToStorage(key) {
+// Guardado de datos asíncrono
+async function saveStateToStorage(key) {
+  // Guardar en localStorage como backup offline
   if (key === 'routines' || !key) {
     localStorage.setItem('kf_routines', JSON.stringify(state.routines));
   }
@@ -95,6 +144,21 @@ function saveStateToStorage(key) {
   }
   if (key === 'settings' || !key) {
     localStorage.setItem('kf_settings', JSON.stringify(state.settings));
+  }
+
+  // Guardar en Firebase
+  try {
+    if (window.firebaseDb) {
+      const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
+      await window.firebaseSetDoc(docRef, {
+        routines: state.routines,
+        history: state.history,
+        weight: state.weightHistory,
+        settings: state.settings
+      }, { merge: true });
+    }
+  } catch (error) {
+    console.error("Error guardando datos en Firebase:", error);
   }
 }
 
