@@ -24,24 +24,33 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
-  // Esperar a que el módulo de Firebase cargue (max 1 segundo)
-  let retries = 0;
-  while (!window.firebaseDb && retries < 10) {
-    await new Promise(r => setTimeout(r, 100));
-    retries++;
-  }
-
-  // Cargar datos desde Firebase o usar localStorage como fallback
-  await loadStateFromStorage();
-
-  // Configurar listeners de la navegación
+  // CRÍTICO: Configurar navegación PRIMERO para que nunca quede inactiva
+  // incluso si la carga de datos falla por cualquier motivo.
   setupNavigation();
 
+  try {
+    // Esperar a que el módulo de Firebase cargue (max 1 segundo)
+    let retries = 0;
+    while (!window.firebaseDb && retries < 10) {
+      await new Promise(r => setTimeout(r, 100));
+      retries++;
+    }
+
+    // Cargar datos desde Firebase o usar localStorage como fallback
+    await loadStateFromStorage();
+  } catch (err) {
+    console.error('Error durante la carga de datos iniciales:', err);
+    // Usar datos por defecto si la carga falla
+    if (!state.routines || state.routines.length === 0) {
+      state.routines = typeof INITIAL_ROUTINES !== 'undefined' ? INITIAL_ROUTINES : [];
+    }
+  }
+
   // Configurar listeners generales del DOM
-  setupEventListeners();
+  try { setupEventListeners(); } catch(e) { console.error('Error en setupEventListeners:', e); }
 
   // Configurar listeners del escáner OCR
-  setupOCREventListeners();
+  try { setupOCREventListeners(); } catch(e) { console.error('Error en setupOCREventListeners:', e); }
 
   // Iniciar temporizador para comprobar alertas cada minuto
   setInterval(checkTrainingNotification, 60000);
@@ -50,7 +59,7 @@ async function initApp() {
   switchTab(state.activeTab);
 
   // Actualizar dashboard y widgets
-  updateDashboard();
+  try { updateDashboard(); } catch(e) { console.error('Error en updateDashboard:', e); }
 }
 
 // Carga del estado y datos locales
@@ -86,11 +95,11 @@ async function loadStateFromStorage() {
   if (!savedWeight) savedWeight = localStorage.getItem('kf_weight');
   if (!savedSettings) savedSettings = localStorage.getItem('kf_settings');
 
-  // Parsear si vienen de localStorage (strings)
-  if (typeof savedRoutines === 'string') savedRoutines = JSON.parse(savedRoutines);
-  if (typeof savedHistory === 'string') savedHistory = JSON.parse(savedHistory);
-  if (typeof savedWeight === 'string') savedWeight = JSON.parse(savedWeight);
-  if (typeof savedSettings === 'string') savedSettings = JSON.parse(savedSettings);
+  // Parsear si vienen de localStorage (strings) — con protección contra JSON corrupto
+  try { if (typeof savedRoutines === 'string') savedRoutines = JSON.parse(savedRoutines); } catch(e) { console.error('Rutinas corruptas en localStorage:', e); savedRoutines = null; }
+  try { if (typeof savedHistory === 'string') savedHistory = JSON.parse(savedHistory); } catch(e) { console.error('Historial corrupto en localStorage:', e); savedHistory = null; }
+  try { if (typeof savedWeight === 'string') savedWeight = JSON.parse(savedWeight); } catch(e) { console.error('Peso corrupto en localStorage:', e); savedWeight = null; }
+  try { if (typeof savedSettings === 'string') savedSettings = JSON.parse(savedSettings); } catch(e) { console.error('Configuración corrupta en localStorage:', e); savedSettings = null; }
 
   // Inicializar rutinas
   if (savedRoutines) {
@@ -167,13 +176,27 @@ function setupNavigation() {
   const navButtons = document.querySelectorAll('.nav-item button, .mobile-nav-item');
   
   navButtons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      // Obtener el ID de la vista
+    // Handler compartido para click y touchend
+    const handleNavAction = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       const tabId = btn.getAttribute('data-tab');
       if (tabId) {
         switchTab(tabId);
       }
-    });
+    };
+
+    btn.addEventListener('click', handleNavAction);
+
+    // En móvil, usar touchend para respuesta más rápida y evitar delay de 300ms
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const tabId = btn.getAttribute('data-tab');
+      if (tabId) {
+        switchTab(tabId);
+      }
+    }, { passive: false });
   });
 }
 
@@ -208,19 +231,32 @@ function switchTab(tabId) {
     }
   });
 
-  // Cargar lógica específica de cada vista
-  if (tabId === 'dashboard') {
-    updateDashboard();
-  } else if (tabId === 'workouts') {
-    renderWorkoutsList();
-  } else if (tabId === 'metrics') {
-    renderMetricsPanel();
-  } else if (tabId === 'reports') {
-    renderReportsPanel();
-  } else if (tabId === 'editor') {
-    renderEditorPanel();
-  } else if (tabId === 'settings') {
-    renderSettingsPanel();
+  // Scroll al inicio de la página (importante para móvil)
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // También desplazar el contenedor principal si existe
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) {
+    mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Cargar lógica específica de cada vista — con protección contra errores
+  // para que un fallo en un panel nunca bloquee la navegación
+  try {
+    if (tabId === 'dashboard') {
+      updateDashboard();
+    } else if (tabId === 'workouts') {
+      renderWorkoutsList();
+    } else if (tabId === 'metrics') {
+      renderMetricsPanel();
+    } else if (tabId === 'reports') {
+      renderReportsPanel();
+    } else if (tabId === 'editor') {
+      renderEditorPanel();
+    } else if (tabId === 'settings') {
+      renderSettingsPanel();
+    }
+  } catch (err) {
+    console.error(`Error al renderizar la vista '${tabId}':`, err);
   }
 }
 

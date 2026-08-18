@@ -292,7 +292,7 @@
           </div>
         </div>
 
-        <div class="metrics-layout" style="display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="metrics-layout">
           <!-- Formulario e Historial -->
           <div class="card metrics-form-card">
             <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; margin-bottom:1.5rem; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
@@ -384,10 +384,10 @@
           </div>
 
           <!-- Tabla comparativa InBody (Últimos registros y balance global) -->
-          <div class="card" style="grid-column: span 2;">
-            <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; color:var(--primary); margin-bottom:0.5rem; display: flex; justify-content: space-between; align-items: center;">
+          <div class="card metrics-comparison-card">
+            <h3 class="metrics-comparison-title">
               <span>📈 Tabla Comparativa de Composición Corporal</span>
-              <span style="font-size:0.8rem; font-family:'Inter',sans-serif; color:var(--text-muted); text-transform:none;">Últimas 5 fechas frente a la medición base</span>
+              <span class="metrics-comparison-subtitle">Últimas 5 fechas frente a la medición base</span>
             </h3>
             <div class="comparison-table-wrapper" id="metrics-comparison-table-container">
               <!-- Generado dinámicamente por app.js -->
@@ -416,7 +416,7 @@
         </div>
 
         <!-- Cuadro General de Fuerza y Progresos del Gimnasio -->
-        <div class="card" style="grid-column: span 2; margin-bottom: 1.5rem;">
+        <div class="card reports-full-width-card">
           <div class="chart-header">
             <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; color:var(--primary);">Cuadro General de Fuerza y Cargas</h3>
             <span style="font-size: 0.85rem; color: var(--text-muted);">Progreso consolidado de todos los ejercicios de tu rutina activa</span>
