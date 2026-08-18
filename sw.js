@@ -1,5 +1,5 @@
 // KeasyFit Service Worker — Cache Offline-First
-const CACHE_NAME = 'keasyfit-v1';
+const CACHE_NAME = 'keasyfit-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,8 +7,8 @@ const ASSETS_TO_CACHE = [
   '/js/data.js',
   '/js/charts.js',
   '/js/app.js',
-  '/icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap'
+  '/icon-512.png'
+  // Google Fonts se cachean automáticamente en la primera visita vía CDN handler
 ];
 
 // Instalar: pre-cachear todos los recursos estáticos
@@ -42,8 +42,10 @@ self.addEventListener('fetch', event => {
     return; // Dejar que el navegador maneje estas peticiones normalmente
   }
 
-  // Para CDNs de librerías (Chart.js, Confetti, Tesseract): cache-first
-  if (url.hostname.includes('cdn.jsdelivr.net')) {
+  // Para CDNs de librerías (Chart.js, Confetti, Tesseract) y Google Fonts: cache-first
+  if (url.hostname.includes('cdn.jsdelivr.net') || 
+      url.hostname.includes('fonts.googleapis.com') || 
+      url.hostname.includes('fonts.gstatic.com')) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         if (cached) return cached;

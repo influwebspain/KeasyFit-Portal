@@ -28,19 +28,12 @@ async function initApp() {
   // incluso si la carga de datos falla por cualquier motivo.
   setupNavigation();
 
+  // PASO 1: Cargar INMEDIATAMENTE desde localStorage (< 1ms)
+  // Esto garantiza que las rutinas se muestran al instante sin esperar red.
   try {
-    // Esperar a que el módulo de Firebase cargue (max 1 segundo)
-    let retries = 0;
-    while (!window.firebaseDb && retries < 10) {
-      await new Promise(r => setTimeout(r, 100));
-      retries++;
-    }
-
-    // Cargar datos desde Firebase o usar localStorage como fallback
-    await loadStateFromStorage();
+    loadStateFromLocalStorage();
   } catch (err) {
-    console.error('Error durante la carga de datos iniciales:', err);
-    // Usar datos por defecto si la carga falla
+    console.error('Error cargando datos locales:', err);
     if (!state.routines || state.routines.length === 0) {
       state.routines = typeof INITIAL_ROUTINES !== 'undefined' ? INITIAL_ROUTINES : [];
     }
@@ -60,42 +53,23 @@ async function initApp() {
 
   // Actualizar dashboard y widgets
   try { updateDashboard(); } catch(e) { console.error('Error en updateDashboard:', e); }
+
+  // Pre-renderizar paneles de entrenamientos y editor para que estén listos
+  try { renderWorkoutsList(); } catch(e) { console.error('Error pre-renderizando workouts:', e); }
+  try { renderEditorPanel(); } catch(e) { console.error('Error pre-renderizando editor:', e); }
+
+  // PASO 2: Sincronizar desde Firebase EN SEGUNDO PLANO (no bloquea UI)
+  syncFromFirebaseInBackground();
 }
 
-// Carga del estado y datos locales
-async function loadStateFromStorage() {
-  let savedRoutines = null;
-  let savedHistory = null;
-  let savedWeight = null;
-  let savedSettings = null;
+// CARGA RÁPIDA: Solo localStorage (síncrono, < 1ms)
+function loadStateFromLocalStorage() {
+  let savedRoutines = localStorage.getItem('kf_routines');
+  let savedHistory = localStorage.getItem('kf_history');
+  let savedWeight = localStorage.getItem('kf_weight');
+  let savedSettings = localStorage.getItem('kf_settings');
 
-  try {
-    // Intentar cargar desde Firebase primero (si firebase-init ya cargó window.firebaseDb)
-    // Es posible que el script de módulo tarde un poco, usamos un pequeño delay si es necesario.
-    // Como firebase-init usa type="module", debemos esperar a que inicialice.
-    // Simplificado para este caso: si está disponible, cargar.
-    if (window.firebaseDb) {
-      const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
-      const docSnap = await window.firebaseGetDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        savedRoutines = data.routines;
-        savedHistory = data.history;
-        savedWeight = data.weight;
-        savedSettings = data.settings;
-      }
-    }
-  } catch (error) {
-    console.error("Error cargando datos de Firebase:", error);
-  }
-
-  // Fallback a localStorage si Firebase falló o no tenía datos
-  if (!savedRoutines) savedRoutines = localStorage.getItem('kf_routines');
-  if (!savedHistory) savedHistory = localStorage.getItem('kf_history');
-  if (!savedWeight) savedWeight = localStorage.getItem('kf_weight');
-  if (!savedSettings) savedSettings = localStorage.getItem('kf_settings');
-
-  // Parsear si vienen de localStorage (strings) — con protección contra JSON corrupto
+  // Parsear con protección contra JSON corrupto
   try { if (typeof savedRoutines === 'string') savedRoutines = JSON.parse(savedRoutines); } catch(e) { console.error('Rutinas corruptas en localStorage:', e); savedRoutines = null; }
   try { if (typeof savedHistory === 'string') savedHistory = JSON.parse(savedHistory); } catch(e) { console.error('Historial corrupto en localStorage:', e); savedHistory = null; }
   try { if (typeof savedWeight === 'string') savedWeight = JSON.parse(savedWeight); } catch(e) { console.error('Peso corrupto en localStorage:', e); savedWeight = null; }
@@ -106,7 +80,7 @@ async function loadStateFromStorage() {
     state.routines = savedRoutines;
   } else {
     state.routines = INITIAL_ROUTINES;
-    saveStateToStorage('routines');
+    saveLocalStorageOnly('routines');
   }
 
   // Inicializar historial de entrenamiento
@@ -126,16 +100,87 @@ async function loadStateFromStorage() {
     state.weightHistory = state.weightHistory.filter(w => !fakeDates.includes(w.date));
     
     if (state.weightHistory.length !== originalLength) {
-      saveStateToStorage('weight');
+      saveLocalStorageOnly('weight');
     }
   } else {
     state.weightHistory = INITIAL_WEIGHT_HISTORY;
-    saveStateToStorage('weight');
+    saveLocalStorageOnly('weight');
   }
 
   // Inicializar configuración
   if (savedSettings) {
     state.settings = savedSettings;
+  }
+}
+
+// Guardar solo en localStorage (sin red, para la carga inicial rápida)
+function saveLocalStorageOnly(key) {
+  if (key === 'routines' || !key) localStorage.setItem('kf_routines', JSON.stringify(state.routines));
+  if (key === 'history' || !key) localStorage.setItem('kf_history', JSON.stringify(state.history));
+  if (key === 'weight' || !key) localStorage.setItem('kf_weight', JSON.stringify(state.weightHistory));
+  if (key === 'settings' || !key) localStorage.setItem('kf_settings', JSON.stringify(state.settings));
+}
+
+// SINCRONIZACIÓN EN SEGUNDO PLANO: Descarga datos de Firebase sin bloquear UI
+async function syncFromFirebaseInBackground() {
+  try {
+    // Esperar a que Firebase esté listo (máximo 3 segundos, NO bloqueante)
+    let retries = 0;
+    while (!window.firebaseDb && retries < 30) {
+      await new Promise(r => setTimeout(r, 100));
+      retries++;
+    }
+
+    if (!window.firebaseDb) {
+      console.log('Firebase no disponible, usando solo datos locales.');
+      return;
+    }
+
+    const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
+    const docSnap = await window.firebaseGetDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      let needsRefresh = false;
+
+      // Solo actualizar si Firebase tiene datos más recientes
+      if (data.routines && data.routines.length > 0) {
+        const localRoutinesStr = JSON.stringify(state.routines);
+        const fbRoutinesStr = JSON.stringify(data.routines);
+        if (localRoutinesStr !== fbRoutinesStr) {
+          state.routines = data.routines;
+          localStorage.setItem('kf_routines', JSON.stringify(state.routines));
+          needsRefresh = true;
+        }
+      }
+
+      if (data.history && data.history.length > state.history.length) {
+        state.history = data.history;
+        localStorage.setItem('kf_history', JSON.stringify(state.history));
+        needsRefresh = true;
+      }
+
+      if (data.weight && data.weight.length > state.weightHistory.length) {
+        state.weightHistory = data.weight;
+        localStorage.setItem('kf_weight', JSON.stringify(state.weightHistory));
+        needsRefresh = true;
+      }
+
+      if (data.settings) {
+        state.settings = data.settings;
+        localStorage.setItem('kf_settings', JSON.stringify(state.settings));
+      }
+
+      // Si hubo cambios desde Firebase, re-renderizar las vistas silenciosamente
+      if (needsRefresh) {
+        console.log('Datos actualizados desde Firebase en segundo plano.');
+        try { renderWorkoutsList(); } catch(e) {}
+        try { renderEditorPanel(); } catch(e) {}
+        try { updateDashboard(); } catch(e) {}
+      }
+    }
+  } catch (error) {
+    console.error('Error sincronizando Firebase en segundo plano:', error);
   }
 }
 
@@ -1691,10 +1736,11 @@ function runTesseractOCR(imageSrc) {
   percentLabel.textContent = '0%';
   barFill.style.width = '0%';
 
-  // Ejecutar Tesseract.js de forma 100% local
-  Tesseract.recognize(
-    imageSrc,
-    'spa', // Idioma español para las etiquetas de composición corporal
+  // Carga bajo demanda de Tesseract.js (solo cuando se necesita, ahorra ~4MB en la carga inicial)
+  const startOCR = () => {
+    Tesseract.recognize(
+      imageSrc,
+      'spa', // Idioma español para las etiquetas de composición corporal
     {
       logger: m => {
         if (m && m.status === 'recognizing text') {
@@ -1730,6 +1776,26 @@ function runTesseractOCR(imageSrc) {
     progressContainer.style.display = 'none';
     dropZone.style.display = 'flex';
   });
+  }; // fin de startOCR
+
+  // Si Tesseract.js ya está cargado, ejecutar directamente
+  if (typeof Tesseract !== 'undefined') {
+    startOCR();
+  } else {
+    // Cargar Tesseract.js dinámicamente bajo demanda
+    statusLabel.textContent = 'Descargando módulo de escaneo...';
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    script.onload = () => {
+      startOCR();
+    };
+    script.onerror = () => {
+      alert('Error descargando el módulo de escaneo OCR. Comprueba tu conexión a internet.');
+      progressContainer.style.display = 'none';
+      dropZone.style.display = 'flex';
+    };
+    document.head.appendChild(script);
+  }
 }
 
 function parseAiLinkText(text) {

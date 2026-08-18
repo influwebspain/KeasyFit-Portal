@@ -12,15 +12,21 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- Google Fonts & Estilos -->
+  <!-- Google Fonts: preconectar para cargar antes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap"></noscript>
+
+  <!-- Estilos -->
   <link rel="stylesheet" href="css/style.css">
   
-  <!-- CDN de Chart.js para los Gráficos -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- CDN de Chart.js para los Gráficos (defer: no bloquea el render inicial) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- CDN de Canvas-Confetti para la celebración al terminar entrenamientos -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <!-- CDN de Tesseract.js para el Escáner OCR de Capturas -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Tesseract.js se carga BAJO DEMANDA solo al escanear (ahorra ~4MB en carga inicial) -->
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 </head>
 <body>
 
