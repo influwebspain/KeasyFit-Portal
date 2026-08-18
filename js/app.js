@@ -102,7 +102,7 @@ async function loadStateFromStorage() {
   try { if (typeof savedSettings === 'string') savedSettings = JSON.parse(savedSettings); } catch(e) { console.error('Configuración corrupta en localStorage:', e); savedSettings = null; }
 
   // Inicializar rutinas
-  if (savedRoutines) {
+  if (savedRoutines && savedRoutines.length > 0) {
     state.routines = savedRoutines;
   } else {
     state.routines = INITIAL_ROUTINES;
