@@ -1,0 +1,19 @@
+{
+  "name": "KeasyFit Portal",
+  "short_name": "KeasyFit",
+  "description": "Tu entrenador personal de gimnasio — control de rutinas, cargas y composición corporal.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08090c",
+  "theme_color": "#ccff00",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["fitness", "health", "lifestyle"]
+}

@@ -198,16 +198,16 @@ body {
 /* Vistas (Pages) */
 .page-view {
   display: none;
-  animation: fadeIn 0.4s ease-out;
+  animation: slideInRight 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .page-view.active {
   display: block;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* Estilos de Título de Páginas */
@@ -736,65 +736,77 @@ body {
   color: #ff9966;
 }
 
-/* Panel del Temporizador de Descanso */
-.rest-timer-overlay {
+/* Panel del Temporizador de Descanso (Floating Mini-Timer) */
+.rest-timer-floating {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(8, 9, 12, 0.95);
-  z-index: 1000;
+  top: 20px;
+  right: 20px;
+  background: rgba(10, 12, 16, 0.95);
+  border: 1px solid var(--border-active);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(204, 255, 0, 0.2);
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  z-index: 1050;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transform: translateY(-20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
-.rest-timer-overlay.active {
+.rest-timer-floating.active {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(0);
 }
 
-.timer-box {
-  text-align: center;
+.mini-timer-box {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mini-timer-info {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2rem;
-  background: var(--bg-card);
-  padding: 3rem 4rem;
-  border-radius: 24px;
-  border: 1px solid var(--border-active);
-  box-shadow: 0 0 40px rgba(204, 255, 0, 0.1);
+  align-items: flex-end;
 }
 
-.timer-ring-container {
+.mini-timer-title {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.mini-timer-ring-container {
   position: relative;
-  width: 180px;
-  height: 180px;
+  width: 40px;
+  height: 40px;
 }
 
 .timer-number {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-family: 'Orbitron', sans-serif;
-  font-size: 3.5rem;
-  font-weight: 900;
-  color: var(--primary);
-  text-shadow: 0 0 15px rgba(204, 255, 0, 0.4);
-}
-
-.timer-title {
   font-family: 'Orbitron', sans-serif;
   font-size: 1.2rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.btn-skip-timer {
   color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-skip-timer:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Asistente Personal de Carga */

@@ -187,16 +187,6 @@ function setupNavigation() {
     };
 
     btn.addEventListener('click', handleNavAction);
-
-    // En móvil, usar touchend para respuesta más rápida y evitar delay de 300ms
-    btn.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const tabId = btn.getAttribute('data-tab');
-      if (tabId) {
-        switchTab(tabId);
-      }
-    }, { passive: false });
   });
 }
 
@@ -232,11 +222,16 @@ function switchTab(tabId) {
   });
 
   // Scroll al inicio de la página (importante para móvil)
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  // También desplazar el contenedor principal si existe
-  const mainContent = document.querySelector('.main-content');
-  if (mainContent) {
-    mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+  try {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // También desplazar el contenedor principal si existe
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent && typeof mainContent.scrollTo === 'function') {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  } catch(e) {
+    // Fallback para navegadores móviles antiguos (ej. iOS Safari antiguo)
+    window.scrollTo(0, 0);
   }
 
   // Cargar lógica específica de cada vista — con protección contra errores
@@ -501,6 +496,14 @@ function setupNextWorkoutCard() {
 function renderWorkoutsList() {
   const container = document.getElementById('routines-cards-container');
   if (!container) return;
+
+  // Restaurar visibilidad si no hay entrenamiento activo
+  if (!state.currentWorkout) {
+    const selArea = document.getElementById('routines-selection-area');
+    const focArea = document.getElementById('workout-focus-area');
+    if(selArea) selArea.style.display = 'block';
+    if(focArea) focArea.style.display = 'none';
+  }
 
   container.innerHTML = '';
   
@@ -946,17 +949,26 @@ let timerInterval = null;
 function startRestTimer(seconds) {
   const overlay = document.getElementById('rest-timer-overlay');
   const timerNum = document.getElementById('timer-number');
+  const timerCircle = document.getElementById('timer-ring-circle');
   
   overlay.classList.add('active');
   
   let timeLeft = seconds;
+  const totalTime = seconds;
   timerNum.textContent = timeLeft;
+  if (timerCircle) timerCircle.style.strokeDashoffset = "0";
 
   if (timerInterval) clearInterval(timerInterval);
   
   timerInterval = setInterval(() => {
     timeLeft--;
     timerNum.textContent = timeLeft;
+    
+    // Actualizar anillo SVG (dasharray es 100)
+    if (timerCircle) {
+      const percentage = (timeLeft / totalTime) * 100;
+      timerCircle.style.strokeDashoffset = 100 - percentage;
+    }
     
     // Reproducir micro-bip en los últimos 3 segundos
     if (timeLeft <= 3 && timeLeft > 0) {
