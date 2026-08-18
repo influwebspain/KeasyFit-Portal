@@ -1273,41 +1273,41 @@ body {
   .main-content {
     margin-left: 0;
     width: 100%;
-    padding: 1.2rem 1rem;
-    padding-bottom: 1.5rem;
+    padding: 0.8rem 0.5rem;
+    padding-bottom: 1rem;
   }
   
   /* Cabeceras de página más compactas */
   .page-header {
-    margin-bottom: 1.2rem;
+    margin-bottom: 0.8rem;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.8rem;
+    gap: 0.4rem;
   }
   
   .page-title {
-    font-size: 1.3rem;
-    line-height: 1.3;
+    font-size: 1.2rem;
+    line-height: 1.2;
   }
   
   .page-subtitle {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
   
   /* Cards más compactas */
   .card {
-    padding: 1.2rem;
-    border-radius: 12px;
+    padding: 0.8rem;
+    border-radius: 10px;
   }
   
   /* Dashboard grid en 1 columna */
   .dashboard-grid {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.6rem;
   }
   
   .widget-value {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
   }
   
   .today-workout-card {
@@ -1317,54 +1317,54 @@ body {
   /* Rutinas en 1 columna */
   .routines-list {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.6rem;
   }
   
   /* Entrenamiento activo: una sola columna */
   .workout-focus-container {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.6rem;
   }
   
   .player-exercise-name {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
   }
   
   .player-exercise-meta {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
   
   /* Set rows: compactar grid para móvil */
   .set-row {
-    grid-template-columns: 30px 60px 1fr 1fr;
-    gap: 0.5rem;
-    padding: 0.5rem 0.6rem;
+    grid-template-columns: 24px 50px 1fr 1fr;
+    gap: 0.3rem;
+    padding: 0.4rem 0.3rem;
   }
 
   .set-label {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
   
   .form-input {
-    width: 65px;
-    font-size: 0.85rem;
-    padding: 0.35rem 0.4rem;
+    width: 55px;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.3rem;
   }
   
   /* Dificultad: stack en columna en pantallas muy estrechas */
   .difficulty-selector {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
   
   .difficulty-btn {
-    padding: 0.7rem 0.5rem;
-    font-size: 0.85rem;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.8rem;
   }
   
   /* Video container */
   .video-cover-card {
-    min-height: 180px;
+    min-height: 140px;
   }
   
   /* Métricas: una columna */
