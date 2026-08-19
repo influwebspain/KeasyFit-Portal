@@ -294,7 +294,7 @@ function switchTab(tabId) {
       renderEditorPanel();
     } else if (tabId === 'settings') {
       renderSettingsPanel();
-    } else if (tabId === \'calendar\') { renderCalendar(); }
+    } else if (tabId === 'calendar') { renderCalendar(); }
   } catch (err) {
     console.error(`Error al renderizar la vista '${tabId}':`, err);
   }
@@ -302,14 +302,14 @@ function switchTab(tabId) {
 
 // Configurar listeners de clicks y envíos de formularios generales
 function setupEventListeners() {
-  const prevBtn = document.getElementById(\'cal-prev-month\');
-  const nextBtn = document.getElementById(\'cal-next-month\');
-  if (prevBtn) prevBtn.addEventListener(\'click\', () => {
+  const prevBtn = document.getElementById('cal-prev-month');
+  const nextBtn = document.getElementById('cal-next-month');
+  if (prevBtn) prevBtn.addEventListener('click', () => {
     currentMonth--;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     renderCalendar();
   });
-  if (nextBtn) nextBtn.addEventListener(\'click\', () => {
+  if (nextBtn) nextBtn.addEventListener('click', () => {
     currentMonth++;
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
     renderCalendar();
@@ -1612,7 +1612,7 @@ function renderSettingsPanel() {
 
   // 2. Cargar hora
   document.getElementById('input-alert-time').value = state.settings.notifyTime;
-  if (document.getElementById(\'input-user-height\')) document.getElementById(\'input-user-height\').value = state.settings.userHeight || 174;
+  if (document.getElementById('input-user-height')) document.getElementById('input-user-height').value = state.settings.userHeight || 174;
 
   // 3. Cargar toggles de audio/alerta
   document.getElementById('toggle-sound').checked = state.settings.soundEnabled;
@@ -1625,7 +1625,7 @@ function saveAppSettings() {
     selectedDays.push(parseInt(cb.value));
   });
 
-  const userHeight = parseInt(document.getElementById(\'input-user-height\').value) || 174;
+  const userHeight = parseInt(document.getElementById('input-user-height').value) || 174;
   const notifyTime = document.getElementById('input-alert-time').value;
   const soundEnabled = document.getElementById('toggle-sound').checked;
   const notificationsEnabled = document.getElementById('toggle-push').checked;
