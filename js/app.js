@@ -294,7 +294,7 @@ function switchTab(tabId) {
       renderEditorPanel();
     } else if (tabId === 'settings') {
       renderSettingsPanel();
-    }
+    } else if (tabId === \'calendar\') { renderCalendar(); }
   } catch (err) {
     console.error(`Error al renderizar la vista '${tabId}':`, err);
   }
@@ -302,6 +302,18 @@ function switchTab(tabId) {
 
 // Configurar listeners de clicks y envíos de formularios generales
 function setupEventListeners() {
+  const prevBtn = document.getElementById(\'cal-prev-month\');
+  const nextBtn = document.getElementById(\'cal-next-month\');
+  if (prevBtn) prevBtn.addEventListener(\'click\', () => {
+    currentMonth--;
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    renderCalendar();
+  });
+  if (nextBtn) nextBtn.addEventListener(\'click\', () => {
+    currentMonth++;
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    renderCalendar();
+  });
   // Guardar Peso Corporal e InBody
   const weightForm = document.getElementById('weight-logger-form');
   if (weightForm) {
@@ -706,7 +718,7 @@ function renderActiveExercise() {
   const lastLogInfo = getPreviousExerciseLog(exercise.id);
   const recommendationBox = document.getElementById('coach-recommendation');
   
-  let suggestedWeight = exercise.startWeight;
+  let suggestedWeight = calculateDynamicStartWeight(exercise.startWeight, exercise.muscle);
   let coachMessage = "";
 
   if (lastLogInfo) {
@@ -1310,7 +1322,7 @@ function renderGeneralGymReport() {
 
   allExercises.forEach(ex => {
     // 1. Carga inicial
-    const startWeight = ex.startWeight;
+    const startWeight = calculateDynamicStartWeight(ex.startWeight, ex.muscle);
 
     // 2. Encontrar peso máximo levantado en el historial
     const exerciseLogs = state.history.filter(log => log.exerciseId === ex.id);
@@ -1456,7 +1468,7 @@ function renderEditorPanel() {
       <td>${ex.sets}</td>
       <td>${ex.reps}</td>
       <td>${ex.rest}s</td>
-      <td>${ex.startWeight} kg</td>
+      <td> kg</td>
       <td>
         <div class="action-buttons">
           <button class="btn-icon" title="Subir" onclick="moveExercise(${index}, -1)">▲</button>
@@ -1600,6 +1612,7 @@ function renderSettingsPanel() {
 
   // 2. Cargar hora
   document.getElementById('input-alert-time').value = state.settings.notifyTime;
+  if (document.getElementById(\'input-user-height\')) document.getElementById(\'input-user-height\').value = state.settings.userHeight || 174;
 
   // 3. Cargar toggles de audio/alerta
   document.getElementById('toggle-sound').checked = state.settings.soundEnabled;
@@ -1612,11 +1625,13 @@ function saveAppSettings() {
     selectedDays.push(parseInt(cb.value));
   });
 
+  const userHeight = parseInt(document.getElementById(\'input-user-height\').value) || 174;
   const notifyTime = document.getElementById('input-alert-time').value;
   const soundEnabled = document.getElementById('toggle-sound').checked;
   const notificationsEnabled = document.getElementById('toggle-push').checked;
 
   state.settings.scheduleDays = selectedDays;
+  state.settings.userHeight = userHeight;
   state.settings.notifyTime = notifyTime;
   state.settings.soundEnabled = soundEnabled;
   state.settings.notificationsEnabled = notificationsEnabled;
@@ -1919,5 +1934,93 @@ function injectParsedMetrics(metrics) {
     alert(`🎉 ¡Lectura local completada! Se han auto-rellenado ${count} datos de tu báscula. Por favor, revisa que los números coincidan con tu captura y pulsa "Guardar Registro".`);
   } else {
     alert(`⚠️ No logramos detectar números legibles que coincidan con las variables de composición corporal. Comprueba que la captura de pantalla sea nítida e introduce los datos a mano.`);
+  }
+}
+
+
+// ==========================================
+// CÁLCULOS DINÁMICOS Y CALENDARIO
+// ==========================================
+
+function calculateDynamicStartWeight(baseWeight, muscle) {
+  const latestWeightRecord = state.weightHistory.length > 0 ? state.weightHistory[state.weightHistory.length - 1] : null;
+  const userHeight = state.settings.userHeight || 174;
+  
+  if (!latestWeightRecord) return baseWeight;
+
+  const currentWeight = latestWeightRecord.weight || 148;
+  const age = latestWeightRecord.age || 41;
+  const bodyFat = latestWeightRecord.fat || 40; 
+
+  const lbm = currentWeight * (1 - (bodyFat / 100));
+  const ageFactor = age > 40 ? 1 - ((age - 40) * 0.01) : 1;
+  const bmi = currentWeight / Math.pow(userHeight / 100, 2);
+  const sizeFactor = bmi > 30 ? 1.2 : 1; 
+
+  let multiplier = 1.0;
+  switch (muscle) {
+    case 'legs': multiplier = lbm * 0.4; break;
+    case 'chest':
+    case 'back': multiplier = lbm * 0.25; break;
+    case 'shoulders': multiplier = lbm * 0.15; break;
+    case 'biceps':
+    case 'triceps': multiplier = lbm * 0.10; break;
+    case 'cardio': return baseWeight; 
+    default: multiplier = baseWeight; break;
+  }
+
+  let dynamicWeight = multiplier * 0.1 * ageFactor * sizeFactor;
+  if (dynamicWeight < baseWeight) dynamicWeight = baseWeight;
+  return Math.max(baseWeight, Math.round(dynamicWeight * 2) / 2);
+}
+
+let currentDate = new Date();
+let currentMonth = currentDate.getMonth();
+let currentYear = currentDate.getFullYear();
+
+function renderCalendar() {
+  const monthYearEl = document.getElementById('calendar-month-year');
+  const daysEl = document.getElementById('calendar-days');
+  if (!monthYearEl || !daysEl) return;
+
+  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  monthYearEl.textContent = months[currentMonth] + ' ' + currentYear;
+  
+  daysEl.innerHTML = '';
+  
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  
+  let startDay = firstDay === 0 ? 6 : firstDay - 1;
+  
+  for (let i = 0; i < startDay; i++) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'cal-day empty';
+    daysEl.appendChild(emptyDiv);
+  }
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'cal-day';
+    dayDiv.textContent = day;
+    
+    const fMonth = String(currentMonth + 1).padStart(2, '0');
+    const fDay = String(day).padStart(2, '0');
+    const dateStr = currentYear + '-' + fMonth + '-' + fDay;
+    
+    const workedOut = state.history.some(h => h.date && h.date.startsWith(dateStr));
+    if (workedOut) {
+      dayDiv.classList.add('workout-day');
+      dayDiv.style.backgroundColor = 'var(--primary)';
+      dayDiv.style.color = '#000';
+      dayDiv.style.fontWeight = 'bold';
+    }
+    
+    const today = new Date();
+    if (day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+      dayDiv.style.border = '2px solid var(--accent)';
+    }
+    
+    daysEl.appendChild(dayDiv);
   }
 }
