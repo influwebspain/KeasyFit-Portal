@@ -859,6 +859,21 @@ function toggleSetCompletion(checkbox) {
         input.focus();
         input.select();
       }
+
+      // Iniciar temporizador de descanso entre series
+      const workout = state.currentWorkout;
+      if (workout) {
+        const exercise = workout.exercises[workout.currentIndex];
+        const restTime = exercise.rest || 60;
+        if (restTime > 0) {
+          startRestTimer(restTime, () => {
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          });
+        }
+      }
     }
   } else {
     row.classList.remove('completed');
@@ -990,8 +1005,10 @@ function triggerConfettiSuccess() {
 // ==========================================
 
 let timerInterval = null;
+let currentTimerCallback = null;
 
-function startRestTimer(seconds) {
+function startRestTimer(seconds, onComplete) {
+  currentTimerCallback = onComplete || function() { advanceExercise(); };
   const overlay = document.getElementById('rest-timer-overlay');
   const timerNum = document.getElementById('timer-number');
   const timerCircle = document.getElementById('timer-ring-circle');
@@ -1027,8 +1044,8 @@ function startRestTimer(seconds) {
       // Cerrar modal
       overlay.classList.remove('active');
       
-      // Pasar al siguiente ejercicio
-      advanceExercise();
+      // Ejecutar callback correspondiente
+      if (currentTimerCallback) currentTimerCallback();
     }
   }, 1000);
 }
@@ -1036,7 +1053,7 @@ function startRestTimer(seconds) {
 function skipRestTimer() {
   if (timerInterval) clearInterval(timerInterval);
   document.getElementById('rest-timer-overlay').classList.remove('active');
-  advanceExercise();
+  if (currentTimerCallback) currentTimerCallback();
 }
 
 // Sintetizar sonido nativo (Evita problemas de carga de archivos mp3)
