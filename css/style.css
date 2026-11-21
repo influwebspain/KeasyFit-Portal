@@ -2619,3 +2619,213 @@ button.strength-row:hover {
     display: none !important;
   }
 }
+
+/* ==========================================
+   CORREGIR Y BORRAR REGISTROS
+   ========================================== */
+
+/* Botón de borrar en rojo suave (sobre .btn-secondary) */
+.btn-danger-soft {
+  color: var(--danger);
+  border-color: rgba(185, 28, 28, 0.35);
+}
+
+.btn-danger-soft:hover {
+  background: rgba(185, 28, 28, 0.07);
+  border-color: var(--danger);
+}
+
+.records-empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 0.75rem 0;
+  text-align: center;
+}
+
+/* Lista de registros de báscula (Métricas) */
+.metrics-records-card {
+  grid-column: 1 / -1;
+}
+
+.record-row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.record-row:last-child {
+  border-bottom: none;
+}
+
+.record-row.editing {
+  background: rgba(5, 150, 105, 0.06);
+  border-radius: 8px;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.record-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.record-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.record-main strong {
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.record-main small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.record-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* Días del calendario: son botones para poder tocarlos */
+button.cal-day {
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.cal-day.selected {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Detalle del día tocado */
+.calendar-day-detail {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.day-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.day-detail-head h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.day-detail-head h4::first-letter {
+  text-transform: uppercase;
+}
+
+.day-session {
+  margin-top: 0.6rem;
+}
+
+.day-session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.875rem;
+  color: var(--primary);
+}
+
+.day-set-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+
+.day-set-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--text-main);
+}
+
+.day-set-name small {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.day-set-field {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.day-set-field input {
+  width: 4.2rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  background: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-set-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.day-set-delete:hover {
+  color: var(--danger);
+  background: rgba(185, 28, 28, 0.08);
+}
+
+@media (max-width: 600px) {
+  .record-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .record-date {
+    grid-column: 1 / -1;
+  }
+
+  /* Nombre arriba; peso, reps y borrar en la línea de abajo */
+  .day-set-row {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .day-set-name {
+    grid-column: 1 / -1;
+  }
+
+  .day-set-field input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media print {
+  .metrics-records-card,
+  .calendar-day-detail {
+    display: none !important;
+  }
+}

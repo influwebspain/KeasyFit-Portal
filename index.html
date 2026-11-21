@@ -21,8 +21,10 @@
   <!-- Estilos -->
   <link rel="stylesheet" href="css/style.css">
   
-  <!-- CDN de Chart.js para los Gráficos (defer: no bloquea el render inicial) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- CDN de Chart.js para los Gráficos (defer: no bloquea el render inicial).
+       Versión fija: sin ella, un móvil nuevo bajaría la última y una versión
+       mayor podría romper los gráficos. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
   <!-- CDN de Canvas-Confetti para la celebración al terminar entrenamientos -->
   <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <!-- Tesseract.js se carga BAJO DEMANDA solo al escanear (ahorra ~4MB en carga inicial) -->
@@ -112,6 +114,15 @@
         <button class="btn btn-accent btn-sm" onclick="location.reload()">Recargar</button>
       </div>
 
+      <!-- ENTRENO A MEDIAS (la pestaña se cerró durante un entrenamiento) -->
+      <div id="resume-bar" class="alert-bar" style="display: none; background: rgba(5, 150, 105, 0.07); border-color: var(--primary);">
+        <span class="alert-bar-text" id="resume-bar-text"></span>
+        <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+          <button class="btn btn-primary btn-sm" onclick="resumeSavedWorkout()">Reanudar</button>
+          <button class="btn btn-secondary btn-sm" onclick="discardSavedWorkoutFromBar()">Descartar</button>
+        </div>
+      </div>
+
       <!-- BARRA INSTALAR PWA -->
       <div id="pwa-install-banner" class="alert-bar" style="display: none; background: rgba(5, 150, 105, 0.07); border-color: var(--primary);">
         <span class="alert-bar-text">📲 <strong>Instala FitActive</strong> para usarla offline en el gimnasio.</span>
@@ -121,7 +132,10 @@
       <!-- BARRA DE ALERTA DE NOTIFICACIONES DESACTIVADAS -->
       <div id="alert-permission-bar" class="alert-bar" style="display: none;">
         <span class="alert-bar-text">🔔 Alertas desactivadas. <strong>Actívalas</strong> para recibir avisos de entreno.</span>
-        <button class="btn btn-accent btn-sm" onclick="requestAndTestNotifications()">Activar</button>
+        <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+          <button class="btn btn-accent btn-sm" onclick="requestAndTestNotifications()">Activar</button>
+          <button class="btn btn-secondary btn-sm" onclick="dismissPermissionBar()">Ahora no</button>
+        </div>
       </div>
 
       <!-- ========================================== -->
@@ -407,8 +421,11 @@
                 <label class="form-label" for="input-weight-date">Fecha del Registro</label>
                 <input type="date" id="input-weight-date" class="form-control-full" required>
               </div>
-              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.8rem;">
+              <button type="submit" id="btn-save-weight" class="btn btn-primary" style="width: 100%; margin-top: 0.8rem;">
                 Guardar Registro
+              </button>
+              <button type="button" id="btn-cancel-weight-edit" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; display: none;" onclick="cancelWeightEdit()">
+                Cancelar edición
               </button>
             </form>
           </div>
@@ -440,6 +457,19 @@
               <span class="metrics-comparison-subtitle">Último registro frente a la medición base</span>
             </h3>
             <div class="comparison-table-wrapper" id="metrics-comparison-table-container">
+              <!-- Generado dinámicamente por app.js -->
+            </div>
+          </div>
+
+          <!-- Todos los registros de báscula, para corregir o borrar -->
+          <div class="card metrics-records-card">
+            <div class="chart-header">
+              <div>
+                <h3 class="report-card-title">Registros guardados</h3>
+                <span class="report-card-sub">Edita o borra un registro si te equivocaste</span>
+              </div>
+            </div>
+            <div id="weight-records-list">
               <!-- Generado dinámicamente por app.js -->
             </div>
           </div>
@@ -579,10 +609,13 @@
             <span><i class="legend-dot trained"></i> Entrenado (letra = día de rutina)</span>
             <span><i class="legend-dot planned"></i> Planificado</span>
             <span><i class="legend-dot today"></i> Hoy</span>
+            <span>Toca un día para ver y corregir sus series</span>
           </div>
           <div class="calendar-summary" id="calendar-summary">
             <!-- Resumen del mes via JS -->
           </div>
+          <!-- Series del día tocado, para corregirlas o borrarlas -->
+          <div class="calendar-day-detail" id="calendar-day-detail" style="display: none;"></div>
         </div>
       </section>
 
@@ -647,6 +680,11 @@
                 <label class="form-label" for="input-user-age">Tu Edad (años)</label>
                 <input type="number" id="input-user-age" class="form-control-full" style="width: 150px;" min="10" max="100" placeholder="Ej: 32">
               </div>
+              <div class="form-group" style="margin-top: 1.5rem;">
+                <label class="form-label" for="input-plan-start">Inicio del plan actual</label>
+                <input type="date" id="input-plan-start" class="form-control-full" style="width: 180px;">
+                <span id="plan-start-help" style="display:block; font-size:0.8rem; color:var(--text-muted); margin-top:0.4rem;">Vacío = desde tu primer entreno con este plan.</span>
+              </div>
 
               <div class="form-group" style="margin-top: 1.5rem;">
                 <label class="form-label" for="input-alert-time">Hora de la Alerta</label>
@@ -656,16 +694,16 @@
               <!-- Toggles -->
               <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; margin-top:2rem; border-top:1px solid var(--border-color); padding-top:1.5rem;">
                 <div>
-                  <span style="font-weight:600; display:block;">Notificaciones Push en Navegador</span>
-                  <span style="font-size:0.8rem; color:var(--text-muted);">Recibe una ventana emergente en tu escritorio.</span>
+                  <span style="font-weight:600; display:block;">Aviso de hora de entreno</span>
+                  <span style="font-size:0.8rem; color:var(--text-muted);">Solo avisa si FitActive está abierta a esa hora (el móvil puede pausarla en segundo plano).</span>
                 </div>
                 <input type="checkbox" id="toggle-push" style="width:20px; height:20px; cursor:pointer;">
               </div>
 
               <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; margin-top:1.2rem;">
                 <div>
-                  <span style="font-weight:600; display:block;">Sonido en Temporizador de Descanso</span>
-                  <span style="font-size:0.8rem; color:var(--text-muted);">Pitidos sintetizados en los últimos segundos.</span>
+                  <span style="font-weight:600; display:block;">Sonido y vibración en el descanso</span>
+                  <span style="font-size:0.8rem; color:var(--text-muted);">Pitidos en los últimos segundos y vibración al terminar.</span>
                 </div>
                 <input type="checkbox" id="toggle-sound" style="width:20px; height:20px; cursor:pointer;">
               </div>
@@ -680,7 +718,7 @@
           <div class="card" style="height: fit-content; border-color: rgba(185, 28, 28, 0.25);">
             <h3 style="text-transform:uppercase; font-size:1.1rem; margin-bottom:1rem; color:var(--danger);">Zona de Peligro</h3>
             <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5; margin-bottom:1.5rem;">
-              Las siguientes acciones borrarán de forma irreversible los datos guardados en este navegador web local.
+              Borra de forma irreversible tu historial de entrenos y de báscula en este dispositivo, en la nube y en tus otros dispositivos al sincronizar.
             </p>
             <button class="btn btn-secondary" onclick="resetAllApplicationData()" style="background:var(--danger); border-color:var(--danger); color:#fff; width:100%;">
               Restablecer Datos de Fábrica
@@ -730,8 +768,11 @@
     // Iniciar fecha por defecto en formulario de peso
     document.getElementById('input-weight-date').value = getLocalDateString();
 
-    // Mostrar aviso si las notificaciones no están activas y el navegador lo soporta
-    if ("Notification" in window && Notification.permission !== "granted") {
+    // Mostrar aviso solo si aún no se ha decidido el permiso (si está bloqueado,
+    // el botón no puede volver a pedirlo y la barra no se podría quitar)
+    let alertBarDismissed = false;
+    try { alertBarDismissed = localStorage.getItem('kf_alert_bar_dismissed') === '1'; } catch (e) {}
+    if ("Notification" in window && Notification.permission === "default" && !alertBarDismissed) {
       document.getElementById('alert-permission-bar').style.display = 'flex';
     }
 

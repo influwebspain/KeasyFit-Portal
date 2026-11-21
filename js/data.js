@@ -5,11 +5,16 @@
 // v3: series máximas de los ejercicios principales y unidad de intensidad del cardio.
 const ROUTINES_VERSION = 3;
 
+// Día en que este plan llegó a la app. Los entrenos anteriores son del plan
+// antiguo y no cuentan para las semanas del plan (2 series → 3 series).
+// Si cambias de plan, actualiza esta fecha.
+const PLAN_RELEASE_DATE = "2026-11-21";
+
 // PLAN DE RETORNO AL ENTRENAMIENTO — Joel Cabado (Personal Trainer)
 // 3 días/semana, cuerpo completo, máquinas/poleas/cardio.
 // Semanas 1-2: 2 series, RPE 5-6. Semanas 3-4: añadir 1 serie si se recupera bien.
-// maxSets: 3 marca los ejercicios principales ("2-3 series" en el PDF); las fases
-// y la progresión de cargas se calculan en app.js (PLAN_PHASES).
+// maxSets: 3 marca los ejercicios principales ("2-3 series" en el PDF); el paso
+// a 3 series se calcula en app.js (weeksSincePlanStart).
 // Cardio: reps = minutos iniciales, startWeight = intensidad inicial en intensityUnit.
 // Respetar siempre las indicaciones del fisioterapeuta y del equipo médico.
 const INITIAL_ROUTINES = [

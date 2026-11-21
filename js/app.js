@@ -5,6 +5,7 @@ let state = {
   routines: [],
   history: [],
   weightHistory: [],
+  deleted: { weight: {}, history: {} }, // registros borrados (ver mergeDeleted)
   settings: {
     scheduleDays: [1, 3, 5], // 1=Lunes, 3=Miércoles, 5=Viernes
     notifyTime: "19:00",
@@ -65,6 +66,9 @@ async function initApp() {
   // Pre-renderizar el panel de entrenamientos para que esté listo
   try { renderWorkoutsList(); } catch(e) { console.error('Error pre-renderizando workouts:', e); }
 
+  // ¿Quedó un entreno a medias (pestaña cerrada por el móvil)?
+  try { offerResumeWorkout(); } catch(e) { console.error('Error comprobando entreno a medias:', e); }
+
   // PASO 2: Sincronizar desde Firebase EN SEGUNDO PLANO (no bloquea UI)
   syncFromFirebaseInBackground();
 }
@@ -118,11 +122,12 @@ function loadStateFromLocalStorage() {
     state.settings = savedSettings;
   }
 
-  // Inicio del plan actual (base de las semanas de progresión): primer entrenamiento registrado
-  if (!state.settings.planStartDate) {
-    const firstLog = state.history.map(h => (h.date || '').slice(0, 10)).filter(Boolean).sort()[0];
-    state.settings.planStartDate = firstLog || getLocalDateString();
-    saveLocalStorageOnly('settings');
+  // Registros borrados (para que la sincronización no los resucite)
+  try {
+    state.deleted = mergeDeleted(JSON.parse(localStorage.getItem('kf_deleted')), null);
+  } catch (e) {
+    console.error('Borrados corruptos en localStorage:', e);
+    state.deleted = emptyDeleted();
   }
 
   // Migración del plan de entrenamiento: al cambiar ROUTINES_VERSION se
@@ -143,6 +148,7 @@ function saveLocalStorageOnly(key) {
   if (key === 'history' || !key) localStorage.setItem('kf_history', JSON.stringify(state.history.filter(l => !l._sessionPending)));
   if (key === 'weight' || !key) localStorage.setItem('kf_weight', JSON.stringify(state.weightHistory));
   if (key === 'settings' || !key) localStorage.setItem('kf_settings', JSON.stringify(state.settings));
+  if (key === 'history' || key === 'weight' || !key) localStorage.setItem('kf_deleted', JSON.stringify(state.deleted));
 }
 
 // ==========================================
@@ -158,24 +164,89 @@ function historyLogKey(log) {
   return [log.sessionId || '', (log.date || '').slice(0, 10), log.routineId || '', log.exerciseId || '', log.setIndex || ''].join('|');
 }
 
-// Une dos historiales de entrenamiento sin perder sesiones de ninguno
-function mergeHistory(primary, secondary) {
-  const byKey = new Map();
-  [...(secondary || []), ...(primary || [])].forEach(log => {
-    if (!log || log._sessionPending) return;
-    byKey.set(historyLogKey(log), log);
-  });
-  return [...byKey.values()].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+// Borrados: { weight: {fecha: momento}, history: {clave de serie: momento} }.
+// Se sincronizan con la nube; sin ellos, la unión con la nube o con otro
+// dispositivo volvería a traer lo que borraste.
+function emptyDeleted() {
+  return { weight: {}, history: {} };
 }
 
-// Une dos historiales de báscula por fecha; en conflicto gana `primary`
-function mergeWeightHistory(primary, secondary) {
-  const byDate = new Map();
+function mergeDeleted(a, b) {
+  const out = emptyDeleted();
+  [a, b].forEach(src => ['weight', 'history'].forEach(kind => {
+    Object.entries((src && src[kind]) || {}).forEach(([k, at]) => {
+      if (!(out[kind][k] >= at)) out[kind][k] = at;
+    });
+  }));
+  return out;
+}
+
+// Un registro sigue vivo si se guardó o se editó después de borrarlo
+// (p. ej. vuelves a meter la báscula de un día que habías borrado)
+function isAlive(deletedAt, rec) {
+  return !(deletedAt >= (rec.updatedAt || 0));
+}
+
+// Une dos listas por clave: en un mismo registro gana el editado más tarde
+// (updatedAt) y, si empatan, `primary`. Quita los borrados.
+function mergeByKey(primary, secondary, keyOf, deletedMap) {
+  const byKey = new Map();
   [...(secondary || []), ...(primary || [])].forEach(rec => {
-    if (!rec || !rec.date || FAKE_WEIGHT_DATES.includes(rec.date)) return;
-    byDate.set(rec.date, rec);
+    const key = keyOf(rec);
+    if (key === null) return;
+    const current = byKey.get(key);
+    if (!current || (rec.updatedAt || 0) >= (current.updatedAt || 0)) byKey.set(key, rec);
   });
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return [...byKey.entries()]
+    .filter(([key, rec]) => isAlive((deletedMap || {})[key], rec))
+    .map(([, rec]) => rec);
+}
+
+// Une dos historiales de entrenamiento sin perder sesiones de ninguno
+function mergeHistory(primary, secondary, deleted = state.deleted) {
+  return mergeByKey(primary, secondary,
+    log => (!log || log._sessionPending) ? null : historyLogKey(log),
+    deleted && deleted.history)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+}
+
+// Une dos historiales de báscula por fecha
+function mergeWeightHistory(primary, secondary, deleted = state.deleted) {
+  return mergeByKey(primary, secondary,
+    rec => (!rec || !rec.date || FAKE_WEIGHT_DATES.includes(rec.date)) ? null : rec.date,
+    deleted && deleted.weight)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Marca de "hay cambios locales sin subir": una corrección o un borrado hecho
+// sin conexión no cambia cuántos registros hay, así que la sincronización no
+// lo notaría solo comparando tamaños. Lleva la hora para no borrar la marca de
+// un cambio posterior que aún no ha subido.
+const CLOUD_DIRTY_KEY = 'kf_cloud_dirty';
+
+function markCloudDirty() {
+  localStorage.setItem(CLOUD_DIRTY_KEY, String(Date.now()));
+}
+
+function clearCloudDirty(mark) {
+  if (localStorage.getItem(CLOUD_DIRTY_KEY) === mark) localStorage.removeItem(CLOUD_DIRTY_KEY);
+}
+
+// Último "Restablecer datos de fábrica" que este dispositivo ya ha aplicado
+const RESET_SEEN_KEY = 'kf_reset_seen';
+
+// Si los datos se restablecieron desde otro dispositivo (la nube lleva un
+// resetAt más nuevo), vaciar el historial local antes de fusionar; si no, la
+// fusión volvería a subir lo borrado. Devuelve true si ha vaciado algo.
+function applyCloudReset(cloud) {
+  const resetAt = Number(cloud && cloud.resetAt) || 0;
+  const seen = Number(localStorage.getItem(RESET_SEEN_KEY)) || 0;
+  if (resetAt <= seen) return false;
+  state.history = state.history.filter(l => l._sessionPending);
+  state.weightHistory = [];
+  state.deleted = emptyDeleted();
+  localStorage.setItem(RESET_SEEN_KEY, String(resetAt));
+  return true;
 }
 
 // Estado de la sincronización, visible en Ajustes
@@ -229,7 +300,7 @@ async function syncFromFirebaseInBackground() {
     }
 
     const data = docSnap.data();
-    let needsRefresh = false;
+    let needsRefresh = applyCloudReset(data);
     const cloudVersion = (data.settings && data.settings.routinesVersion) || 0;
     const localVersion = state.settings.routinesVersion || 0;
 
@@ -256,19 +327,15 @@ async function syncFromFirebaseInBackground() {
       saveLocalStorageOnly('settings');
     }
 
-    if (data.settings && data.settings.planStartDate &&
-        (!state.settings.planStartDate || data.settings.planStartDate < state.settings.planStartDate)) {
-      state.settings.planStartDate = data.settings.planStartDate;
-      saveLocalStorageOnly('settings');
-    }
-
-    // Historial y báscula: unión de nube + dispositivo (nunca "gana el más largo")
+    // Historial y báscula: unión de nube + dispositivo (nunca "gana el más
+    // largo"), respetando lo borrado en cualquiera de los dos
+    state.deleted = mergeDeleted(state.deleted, data.deleted);
     const pending = state.history.filter(l => l._sessionPending);
     const localHistory = state.history.filter(l => !l._sessionPending);
     const mergedHistory = mergeHistory(localHistory, data.history);
     const mergedWeight = mergeWeightHistory(state.weightHistory, data.weight);
 
-    if (mergedHistory.length !== localHistory.length) needsRefresh = true;
+    if (JSON.stringify(mergedHistory) !== JSON.stringify(localHistory)) needsRefresh = true;
     if (JSON.stringify(mergedWeight) !== JSON.stringify(state.weightHistory)) needsRefresh = true;
 
     state.history = mergedHistory.concat(pending);
@@ -276,8 +343,10 @@ async function syncFromFirebaseInBackground() {
     saveLocalStorageOnly('history');
     saveLocalStorageOnly('weight');
 
-    // Si este dispositivo tenía algo que la nube no, subirlo
+    // Si este dispositivo tenía algo que la nube no (o cambios sin subir), subirlo
+    const dirtyMark = localStorage.getItem(CLOUD_DIRTY_KEY);
     const cloudMissingData =
+      !!dirtyMark ||
       mergedHistory.length !== (data.history || []).length ||
       mergedWeight.length !== (data.weight || []).length ||
       cloudVersion < localVersion;
@@ -286,8 +355,10 @@ async function syncFromFirebaseInBackground() {
         routines: state.routines,
         history: mergedHistory,
         weight: mergedWeight,
-        settings: state.settings
+        settings: state.settings,
+        deleted: state.deleted
       }, { merge: true });
+      clearCloudDirty(dirtyMark);
     }
 
     setSyncStatus('synced');
@@ -308,13 +379,17 @@ async function syncFromFirebaseInBackground() {
 // haya allí (otro dispositivo puede haber guardado sesiones mientras tanto).
 async function saveStateToStorage(key) {
   saveLocalStorageOnly(key);
+  markCloudDirty();
+  const dirtyMark = localStorage.getItem(CLOUD_DIRTY_KEY);
 
   try {
     if (!window.firebaseDb) return;
     const docRef = getCloudDocRef();
     const snap = await window.firebaseGetDoc(docRef);
     const cloud = snap.exists() ? snap.data() : {};
+    applyCloudReset(cloud);
 
+    state.deleted = mergeDeleted(state.deleted, cloud.deleted);
     const pending = state.history.filter(l => l._sessionPending);
     const history = mergeHistory(state.history, cloud.history);
     const weight = mergeWeightHistory(state.weightHistory, cloud.weight);
@@ -328,8 +403,10 @@ async function saveStateToStorage(key) {
       routines: state.routines,
       history,
       weight,
-      settings: state.settings
+      settings: state.settings,
+      deleted: state.deleted
     }, { merge: true });
+    clearCloudDirty(dirtyMark);
     setSyncStatus('synced');
   } catch (error) {
     handleSyncError(error, 'guardado');
@@ -449,8 +526,9 @@ function setupEventListeners() {
 
       if (weightVal && dateVal) {
         addWeightRecord(dateVal, weightVal, fatVal, bmiVal, muscleVal, leanVal, visceralVal, waterVal, ageVal);
-        weightForm.reset();
-        document.getElementById('input-weight-date').value = getLocalDateString();
+        // Si al editar cambiaste la fecha, el registro de la fecha antigua sobra
+        if (editingWeightDate && editingWeightDate !== dateVal) deleteWeightRecord(editingWeightDate, false);
+        cancelWeightEdit();
         renderMetricsPanel();
         updateDashboard();
       }
@@ -557,9 +635,23 @@ function calculateWorkoutStreak() {
   return { weeks, thisWeekDays, target };
 }
 
+// Inicio del plan actual: la fecha puesta en Ajustes o, si no hay, el primer
+// entreno registrado desde que el plan llegó a la app (PLAN_RELEASE_DATE).
+// Se calcula del historial en vez de guardarse, para que los entrenos del
+// plan antiguo no adelanten las semanas.
+function getPlanStartDate() {
+  if (state.settings.planStart) return state.settings.planStart;
+  return state.history
+    .filter(h => !isExtraCardio(h) && !h._sessionPending)
+    .map(h => (h.date || '').slice(0, 10))
+    .filter(d => d >= PLAN_RELEASE_DATE)
+    .sort()[0] || null;
+}
+
 // Semanas completas desde el inicio del plan actual (para pasar a 3 series)
 function weeksSincePlanStart() {
-  const start = state.settings.planStartDate || getLocalDateString();
+  const start = getPlanStartDate();
+  if (!start) return 0;
   const days = (Date.parse(getLocalDateString()) - Date.parse(start)) / 86400000;
   return Math.max(0, Math.floor(days / 7));
 }
@@ -715,15 +807,20 @@ function startWorkoutSession(routineId) {
   const routine = state.routines.find(r => r.id === routineId);
   if (!routine) return;
 
+  // Un entreno a medias (en pantalla o guardado) se descarta antes de empezar
+  // otro; si no, sus series pendientes acabarían dentro de la sesión nueva.
+  if (state.currentWorkout || loadSavedWorkout()) {
+    if (!confirm('Tienes un entrenamiento a medias. ¿Descartarlo y empezar este?')) return;
+    discardSavedWorkout();
+  }
+
   // Inicializar estado del entrenamiento actual
   state.currentWorkout = {
     routineId: routineId,
     routineName: routine.name,
-    startTime: new Date(),
     sessionId: Date.now(),
     exercises: JSON.parse(JSON.stringify(routine.exercises)), // copia profunda
-    currentIndex: 0,
-    logs: [] // almacena logs de cada ejercicio completado
+    currentIndex: 0
   };
 
   // Ejercicios principales: 3 series a partir de la semana 3 del plan (PDF)
@@ -731,17 +828,161 @@ function startWorkoutSession(routineId) {
     state.currentWorkout.exercises.forEach(e => { if (e.maxSets) e.sets = e.maxSets; });
   }
 
-  // Cambiar a la vista de entrenar
-  switchTab('workouts');
-  
-  // Ocultar lista de rutinas, mostrar panel de reproducción de ejercicio
-  document.getElementById('routines-selection-area').style.display = 'none';
-  
-  const focusArea = document.getElementById('workout-focus-area');
-  focusArea.style.display = 'block';
-  
+  showWorkoutFocusArea();
   renderActiveExercise();
+  acquireWakeLock();
 }
+
+// Cambia a la vista de entrenar con el panel del ejercicio en curso
+function showWorkoutFocusArea() {
+  switchTab('workouts');
+  document.getElementById('routines-selection-area').style.display = 'none';
+  document.getElementById('workout-focus-area').style.display = 'block';
+}
+
+// ==========================================
+// ENTRENO EN CURSO: se guarda aparte para poder reanudarlo
+// ==========================================
+// Si el móvil cierra la pestaña a mitad del entreno (pasa al cambiar de app o
+// con la pantalla bloqueada), se recupera el punto exacto: ejercicio, series ya
+// hechas y lo que llevabas escrito. Va en una clave propia y no en kf_history
+// para que abortar no deje series a medias en el historial.
+const ACTIVE_WORKOUT_KEY = 'kf_active_workout';
+
+// Valores escritos en las series del ejercicio en pantalla
+function readSetDraft() {
+  const rows = Array.from(document.querySelectorAll('#active-sets-grid .set-row'));
+  return {
+    exerciseIndex: state.currentWorkout ? state.currentWorkout.currentIndex : -1,
+    sets: rows.map(r => ({
+      weight: r.querySelector('.weight-input').value,
+      reps: r.querySelector('.reps-input').value,
+      done: r.querySelector('.set-checkbox').checked
+    })),
+    difficulty: document.querySelector('.difficulty-btn.selected')?.getAttribute('data-diff') || 'adecuado'
+  };
+}
+
+function applySetDraft(draft) {
+  if (!draft || !state.currentWorkout || draft.exerciseIndex !== state.currentWorkout.currentIndex) return;
+  const rows = Array.from(document.querySelectorAll('#active-sets-grid .set-row'));
+  (draft.sets || []).forEach((s, i) => {
+    const row = rows[i];
+    if (!row) return;
+    row.querySelector('.weight-input').value = s.weight;
+    row.querySelector('.reps-input').value = s.reps;
+    row.querySelector('.set-checkbox').checked = !!s.done;
+    row.classList.toggle('completed', !!s.done);
+  });
+  rows.forEach(r => r.classList.remove('active'));
+  const next = rows.find(r => !r.classList.contains('completed'));
+  if (next) next.classList.add('active');
+  if (['facil', 'adecuado', 'duro'].includes(draft.difficulty)) selectDifficulty(draft.difficulty);
+}
+
+function persistActiveWorkout() {
+  if (!state.currentWorkout) return;
+  try {
+    localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify({
+      workout: state.currentWorkout,
+      pending: state.history.filter(l => l._sessionPending),
+      draft: readSetDraft(),
+      savedAt: Date.now()
+    }));
+  } catch (e) {
+    console.error('No se pudo guardar el entreno en curso:', e);
+  }
+}
+
+function loadSavedWorkout() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ACTIVE_WORKOUT_KEY));
+    return saved && saved.workout && Array.isArray(saved.workout.exercises) ? saved : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearSavedWorkout() {
+  localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+}
+
+function hideResumeBar() {
+  const bar = document.getElementById('resume-bar');
+  if (bar) bar.style.display = 'none';
+}
+
+// Al abrir la app: si quedó un entreno a medias, ofrecer reanudarlo
+function offerResumeWorkout() {
+  const saved = loadSavedWorkout();
+  const bar = document.getElementById('resume-bar');
+  const text = document.getElementById('resume-bar-text');
+  if (!saved || !bar || !text || state.currentWorkout) return;
+
+  const w = saved.workout;
+  const savedDay = getLocalDateString(new Date(saved.savedAt || Date.now()));
+  const when = savedDay === getLocalDateString() ? '' : ` (del ${formatDateString(savedDay)})`;
+  text.textContent = `⏸️ Tienes a medias «${w.routineName}»${when}: ejercicio ${w.currentIndex + 1} de ${w.exercises.length}.`;
+  bar.style.display = 'flex';
+}
+
+function resumeSavedWorkout() {
+  const saved = loadSavedWorkout();
+  hideResumeBar();
+  if (!saved) return;
+
+  state.currentWorkout = saved.workout;
+  state.history = state.history
+    .filter(l => !l._sessionPending)
+    .concat((saved.pending || []).map(l => Object.assign({}, l, { _sessionPending: true })));
+
+  showWorkoutFocusArea();
+  renderActiveExercise();
+  applySetDraft(saved.draft);
+  persistActiveWorkout();
+  acquireWakeLock();
+}
+
+// Tira el entreno a medias (series pendientes incluidas)
+function discardSavedWorkout() {
+  state.history = state.history.filter(l => !l._sessionPending);
+  state.currentWorkout = null;
+  clearSavedWorkout();
+  hideResumeBar();
+  stopRestTimer();
+  releaseWakeLock();
+}
+
+function discardSavedWorkoutFromBar() {
+  if (!confirm('¿Descartar el entreno a medias? Se perderán las series de esa sesión.')) return;
+  discardSavedWorkout();
+}
+
+// Pantalla encendida durante el entreno (el navegador la suelta al ocultar la
+// pestaña, así que se vuelve a pedir al volver a ella)
+let wakeLock = null;
+
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator) || !state.currentWorkout) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+  } catch (e) {
+    console.warn('No se pudo mantener la pantalla encendida:', e);
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!state.currentWorkout) return;
+  if (document.visibilityState === 'hidden') persistActiveWorkout();
+  else acquireWakeLock();
+});
 
 function renderActiveExercise() {
   const workout = state.currentWorkout;
@@ -917,6 +1158,10 @@ function renderActiveExercise() {
     });
   });
 
+  // Guardar lo que vas escribiendo o marcando, por si se cierra la pestaña
+  loggerGrid.oninput = persistActiveWorkout;
+  loggerGrid.onchange = persistActiveWorkout;
+
   // Reset de la selección de dificultad
   document.querySelectorAll('.difficulty-btn').forEach(btn => {
     btn.classList.remove('selected');
@@ -952,6 +1197,8 @@ function renderActiveExercise() {
       Siguiente Ejercicio <svg viewBox="0 0 24 24"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21 12l-8.15-8.15-1.42 1.42L16.86 11H5v2z"/></svg>
     `;
   }
+
+  persistActiveWorkout();
 }
 
 // Resalta visualmente el músculo en los diagramas SVG
@@ -1032,6 +1279,7 @@ function selectDifficulty(diff) {
     btn.classList.remove('selected');
   });
   document.querySelector(`.difficulty-btn[data-diff="${diff}"]`).classList.add('selected');
+  persistActiveWorkout();
 }
 
 // Rango de repeticiones del plan: "10-12" → {min: 10, max: 12}; "12" → {12, 12}
@@ -1134,55 +1382,64 @@ function suggestNextLoad(ex) {
   };
 }
 
+let lastNextClickAt = 0;
+
 function handleNextExerciseClick() {
   const workout = state.currentWorkout;
+  if (!workout) return;
+
+  // Doble toque: el segundo caería ya en el ejercicio siguiente
+  const now = Date.now();
+  if (now - lastNextClickAt < 800) return;
+  lastNextClickAt = now;
+
   const exercise = workout.exercises[workout.currentIndex];
-  
-  // Guardar logs de este ejercicio
-  const weightInputs = document.querySelectorAll('.weight-input');
-  const repsInputs = document.querySelectorAll('.reps-input');
-  const difficulty = document.querySelector('.difficulty-btn.selected').getAttribute('data-diff');
-  
+
+  // Solo cuentan las series marcadas como hechas: las demás llevan los valores
+  // sugeridos y falsearían la progresión de cargas
+  const rows = Array.from(document.querySelectorAll('#active-sets-grid .set-row'));
+  const doneRows = rows.filter(r => r.querySelector('.set-checkbox').checked);
+  if (doneRows.length === 0 &&
+      !confirm(`No has marcado ninguna serie de «${exercise.name}».\n\nSolo se guardan las series marcadas con ✓. ¿Pasar al siguiente sin registrar este ejercicio?`)) {
+    return;
+  }
+
+  const difficulty = document.querySelector('.difficulty-btn.selected')?.getAttribute('data-diff') || 'adecuado';
   const todayStr = getLocalDateString();
 
-  weightInputs.forEach((input, index) => {
-    const weightVal = parseFloat(input.value) || 0;
-    const repsVal = parseInt(repsInputs[index].value) || 0;
-    
-    const logEntry = {
+  doneRows.forEach(row => {
+    const weightInput = row.querySelector('.weight-input');
+    state.history.push({
       date: todayStr,
       routineId: workout.routineId,
       sessionId: workout.sessionId,
       exerciseId: exercise.id,
       exerciseName: exercise.name,
-      setIndex: index + 1,
-      reps: repsVal,
-      weight: weightVal,
-      difficulty: difficulty
-    };
-    
-    state.history.push(logEntry);
-    // Marcar como entrada de sesión activa (no confirmada)
-    logEntry._sessionPending = true;
+      setIndex: parseInt(weightInput.dataset.set),
+      reps: parseInt(row.querySelector('.reps-input').value) || 0,
+      weight: parseFloat(weightInput.value) || 0,
+      difficulty: difficulty,
+      // Sesión en curso: no entra en kf_history hasta terminar el entreno
+      // (mientras tanto va en kf_active_workout)
+      _sessionPending: true
+    });
   });
-
-  // NO guardar a localStorage todavía — solo se persiste al completar el entrenamiento
 
   // Si es el último ejercicio del entrenamiento
   if (workout.currentIndex === workout.exercises.length - 1) {
     completeWorkoutSession();
-  } else {
-    // Iniciar temporizador de descanso si no es cardio (en cardio, rest = 0)
-    const restTime = exercise.rest || 0;
-    if (restTime > 0) {
-      startRestTimer(restTime);
-    } else {
-      advanceExercise();
-    }
+    return;
   }
+
+  // Se pasa ya al siguiente ejercicio y el descanso corre mientras lo ves
+  // (así preparas la máquina). Al acabar el descanso solo suena el aviso.
+  advanceExercise();
+  const restTime = exercise.rest || 0;
+  if (restTime > 0) startRestTimer(restTime);
 }
 
 function advanceExercise() {
+  stopRestTimer();
   state.currentWorkout.currentIndex++;
   renderActiveExercise();
 }
@@ -1195,6 +1452,9 @@ function completeWorkoutSession() {
 
   // AHORA sí persistir todo el historial en localStorage
   saveStateToStorage('history');
+  clearSavedWorkout();
+  stopRestTimer();
+  releaseWakeLock();
 
   // Ocultar área de reproducción
   document.getElementById('workout-focus-area').style.display = 'none';
@@ -1219,7 +1479,8 @@ function abortWorkout() {
   
   // Restaurar el historial original en localStorage (sin los datos de esta sesión)
   saveStateToStorage('history');
-  
+  clearSavedWorkout();
+
   // Recargar la página limpia
   location.reload();
 }
@@ -1245,52 +1506,70 @@ let timerInterval = null;
 let currentTimerCallback = null;
 
 function startRestTimer(seconds, onComplete) {
-  currentTimerCallback = onComplete || function() { advanceExercise(); };
+  stopRestTimer();
+  currentTimerCallback = onComplete || null;
   const overlay = document.getElementById('rest-timer-overlay');
   const timerNum = document.getElementById('timer-number');
   const timerCircle = document.getElementById('timer-ring-circle');
-  
-  overlay.classList.add('active');
-  
-  let timeLeft = seconds;
-  const totalTime = seconds;
-  timerNum.textContent = timeLeft;
-  if (timerCircle) timerCircle.style.strokeDashoffset = "0";
 
-  if (timerInterval) clearInterval(timerInterval);
-  
-  timerInterval = setInterval(() => {
-    timeLeft--;
+  overlay.classList.add('active');
+
+  // Se cuenta contra la hora de fin, no restando 1 en cada intervalo: con la
+  // pantalla apagada o la app en segundo plano el móvil retrasa los intervalos
+  // y el contador se quedaría atrás
+  const endAt = Date.now() + seconds * 1000;
+  let lastBeep = null;
+
+  const tick = () => {
+    const timeLeft = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
     timerNum.textContent = timeLeft;
-    
-    // Actualizar anillo SVG (dasharray es 100)
-    if (timerCircle) {
-      const percentage = (timeLeft / totalTime) * 100;
-      timerCircle.style.strokeDashoffset = 100 - percentage;
-    }
-    
-    // Reproducir micro-bip en los últimos 3 segundos
-    if (timeLeft <= 3 && timeLeft > 0) {
+
+    // Anillo SVG (dasharray es 100)
+    if (timerCircle) timerCircle.style.strokeDashoffset = 100 - (timeLeft / seconds) * 100;
+
+    // Micro-bip en los últimos 3 segundos (uno por segundo)
+    if (timeLeft <= 3 && timeLeft > 0 && lastBeep !== timeLeft) {
+      lastBeep = timeLeft;
       playSynthBeep(440, 0.1);
     }
 
     if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      playSynthBeep(880, 0.5); // Bip largo al terminar
-      
-      // Cerrar modal
-      overlay.classList.remove('active');
-      
-      // Ejecutar callback correspondiente
-      if (currentTimerCallback) currentTimerCallback();
+      const callback = currentTimerCallback;
+      // Si el descanso acabó hace rato (app en segundo plano), no pitar tarde
+      const late = Date.now() - endAt > 5000;
+      stopRestTimer();
+      if (!late) {
+        playSynthBeep(880, 0.5); // Bip largo al terminar
+        vibrateDevice([300, 150, 300]);
+      }
+      if (callback) callback();
     }
-  }, 1000);
+  };
+
+  tick();
+  timerInterval = setInterval(tick, 250);
+}
+
+// Vibración al acabar el descanso (en el gimnasio a veces no se oye el pitido).
+// Va con el mismo ajuste que el sonido.
+function vibrateDevice(pattern) {
+  if (!state.settings.soundEnabled || !navigator.vibrate) return;
+  try { navigator.vibrate(pattern); } catch (e) {}
 }
 
 function skipRestTimer() {
+  const callback = currentTimerCallback;
+  stopRestTimer();
+  if (callback) callback();
+}
+
+// Para el descanso sin ejecutar su aviso (al cambiar de ejercicio o terminar)
+function stopRestTimer() {
   if (timerInterval) clearInterval(timerInterval);
-  document.getElementById('rest-timer-overlay').classList.remove('active');
-  if (currentTimerCallback) currentTimerCallback();
+  timerInterval = null;
+  currentTimerCallback = null;
+  const overlay = document.getElementById('rest-timer-overlay');
+  if (overlay) overlay.classList.remove('active');
 }
 
 // Sintetizar sonido nativo (Evita problemas de carga de archivos mp3)
@@ -1301,6 +1580,8 @@ function playSynthBeep(frequency, duration) {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
+    // El móvil puede dejar el audio en pausa (p. ej. tras bloquear la pantalla)
+    if (audioCtx.state === 'suspended') audioCtx.resume();
 
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -1330,12 +1611,19 @@ function renderMetricsPanel() {
   // Renderizar gráfico con la métrica seleccionada
   const canvas = document.getElementById('weight-chart');
   const selectedMetric = document.getElementById('metrics-chart-select')?.value || 'weight';
-  if (canvas && typeof renderWeightChart === 'function') {
-    renderWeightChart(canvas, state.weightHistory, selectedMetric);
+  // Si el gráfico falla (p. ej. Chart.js no cargó sin conexión), que no se
+  // quede sin pintar la tabla ni la lista de registros
+  try {
+    if (canvas && typeof renderWeightChart === 'function') {
+      renderWeightChart(canvas, state.weightHistory, selectedMetric);
+    }
+  } catch (e) {
+    console.error('No se pudo dibujar el gráfico de métricas:', e);
   }
 
   // Renderizar la tabla comparativa de las últimas 5 mediciones e inicio
   renderInBodyComparisonTable();
+  renderWeightRecordsList();
 }
 
 function renderInBodyComparisonTable() {
@@ -1455,9 +1743,10 @@ function addWeightRecord(date, weight, fat, bmi, muscle, leanMass, visceral, wat
     leanMass: leanMass || null,
     visceral: visceral || null,
     water: water || null,
-    bodyAge: bodyAge || null
+    bodyAge: bodyAge || null,
+    updatedAt: Date.now() // en la sincronización gana la versión más reciente
   };
-  
+
   if (index !== -1) {
     state.weightHistory[index] = record;
   } else {
@@ -1465,6 +1754,92 @@ function addWeightRecord(date, weight, fat, bmi, muscle, leanMass, visceral, wat
   }
 
   saveStateToStorage('weight');
+}
+
+// Fecha "AAAA-MM-DD" legible, con año (p. ej. "19 oct 2026")
+function formatDateWithYear(dateStr, opts = { day: '2-digit', month: 'short', year: 'numeric' }) {
+  const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return isNaN(dt) ? dateStr : dt.toLocaleDateString('es-ES', opts);
+}
+
+// Lista de todos los registros de báscula, con Editar y Borrar
+function renderWeightRecordsList() {
+  const el = document.getElementById('weight-records-list');
+  if (!el) return;
+
+  const records = [...state.weightHistory].sort((a, b) => b.date.localeCompare(a.date));
+  if (records.length === 0) {
+    el.innerHTML = '<div class="records-empty">Aún no hay registros de báscula.</div>';
+    return;
+  }
+
+  el.innerHTML = records.map(r => {
+    const extras = [
+      r.fat != null ? `${r.fat} % grasa` : '',
+      r.muscle != null ? `${r.muscle} kg músculo` : ''
+    ].filter(Boolean).join(' · ');
+    return `
+      <div class="record-row${r.date === editingWeightDate ? ' editing' : ''}">
+        <span class="record-date">${formatDateWithYear(r.date)}</span>
+        <span class="record-main"><strong>${r.weight} kg</strong>${extras ? `<small>${extras}</small>` : ''}</span>
+        <span class="record-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-edit-weight="${r.date}">Editar</button>
+          <button type="button" class="btn btn-secondary btn-sm btn-danger-soft" data-delete-weight="${r.date}">Borrar</button>
+        </span>
+      </div>`;
+  }).join('');
+
+  el.onclick = (e) => {
+    const edit = e.target.closest('[data-edit-weight]');
+    if (edit) return startWeightEdit(edit.dataset.editWeight);
+    const del = e.target.closest('[data-delete-weight]');
+    if (del) deleteWeightRecord(del.dataset.deleteWeight);
+  };
+}
+
+// Registro de báscula que se está corrigiendo en el formulario (fecha) o null
+let editingWeightDate = null;
+
+const WEIGHT_FORM_FIELDS = {
+  weight: 'input-body-weight', fat: 'input-body-fat', bmi: 'input-body-bmi',
+  muscle: 'input-body-muscle', leanMass: 'input-body-lean', visceral: 'input-body-visceral',
+  water: 'input-body-water', bodyAge: 'input-body-age'
+};
+
+function startWeightEdit(date) {
+  const rec = state.weightHistory.find(w => w.date === date);
+  if (!rec) return;
+  editingWeightDate = date;
+  Object.entries(WEIGHT_FORM_FIELDS).forEach(([key, id]) => {
+    document.getElementById(id).value = rec[key] ?? '';
+  });
+  document.getElementById('input-weight-date').value = rec.date;
+  document.getElementById('btn-save-weight').textContent = 'Guardar cambios';
+  document.getElementById('btn-cancel-weight-edit').style.display = 'block';
+  renderWeightRecordsList();
+  document.getElementById('weight-logger-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cancelWeightEdit() {
+  editingWeightDate = null;
+  document.getElementById('weight-logger-form').reset();
+  document.getElementById('input-weight-date').value = getLocalDateString();
+  document.getElementById('btn-save-weight').textContent = 'Guardar Registro';
+  document.getElementById('btn-cancel-weight-edit').style.display = 'none';
+  renderWeightRecordsList();
+}
+
+function deleteWeightRecord(date, ask = true) {
+  if (ask && !confirm(`¿Borrar el registro de báscula del ${formatDateWithYear(date)}?`)) return;
+  state.weightHistory = state.weightHistory.filter(w => w.date !== date);
+  state.deleted.weight[date] = Date.now();
+  saveStateToStorage('weight');
+  if (ask) {
+    if (editingWeightDate === date) cancelWeightEdit();
+    renderMetricsPanel();
+    updateDashboard();
+  }
 }
 
 // ==========================================
@@ -1838,32 +2213,56 @@ function exportDataToCSV() {
     return;
   }
 
-  let csvContent = "data:text/csv;charset=utf-8,";
-  
-  // 1. Sección de Historial de Peso corporal InBody ampliado
-  csvContent += "=== REGISTROS DE COMPOSICION CORPORAL INBODY ===\n";
-  csvContent += "Fecha,Peso (kg),Grasa (%),IMC,Masa Muscular (kg),Masa Magra (kg),Grasa Visceral,Agua (%),Edad Corporal\n";
-  state.weightHistory.forEach(item => {
-    csvContent += `"${item.date}",${item.weight},${item.fat || ''},${item.bmi || ''},${item.muscle || ''},${item.leanMass || ''},${item.visceral || ''},${item.water || ''},${item.bodyAge || ''}\n`;
+  // Formato de Excel en español: separador ";", coma decimal y BOM UTF-8.
+  // Con "," Excel lo mete todo en una columna; sin BOM rompe los acentos; y
+  // con punto decimal leería "147.7" como 1477.
+  const cell = v => {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number' || /^-?\d+\.\d+$/.test(String(v))) return String(v).replace('.', ',');
+    const s = String(v);
+    // Comillas si hace falta, y nada que empiece por "=" "+" "-" "@" (Excel lo tomaría por fórmula)
+    const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+    return /[";\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  };
+  const row = values => values.map(cell).join(';');
+  const routineName = id => (state.routines.find(r => r.id === id) || {}).name || id || '';
+  const difficultyLabels = { facil: 'Fácil', adecuado: 'Adecuado', duro: 'Muy duro' };
+
+  const lines = [];
+
+  // 1. Registros de báscula
+  lines.push(row(['REGISTROS DE COMPOSICIÓN CORPORAL']));
+  lines.push(row(['Fecha', 'Peso (kg)', 'Grasa (%)', 'IMC', 'Masa muscular (kg)', 'Masa magra (kg)', 'Grasa visceral', 'Agua (%)', 'Edad corporal']));
+  [...state.weightHistory].sort((a, b) => a.date.localeCompare(b.date)).forEach(item => {
+    lines.push(row([item.date, item.weight, item.fat, item.bmi, item.muscle, item.leanMass, item.visceral, item.water, item.bodyAge]));
   });
 
-  csvContent += "\n";
+  lines.push('');
 
-  // 2. Sección de Historial de Entrenamiento
-  csvContent += "=== HISTORIAL DE ENTRENAMIENTOS ===\n";
-  csvContent += "Fecha,Rutina ID,Ejercicio,Serie,Repeticiones,Peso Levantado (kg),Dificultad Percibida\n";
-  state.history.forEach(log => {
-    csvContent += `"${log.date}","${log.routineId || ''}","${log.exerciseName}",${log.setIndex},${log.reps},${log.weight},"${log.difficulty || ''}"\n`;
+  // 2. Historial de entrenamiento (en cardio: reps = minutos, peso = intensidad)
+  lines.push(row(['HISTORIAL DE ENTRENAMIENTOS']));
+  lines.push(row(['Fecha', 'Rutina', 'Ejercicio', 'Serie', 'Repeticiones / min', 'Peso (kg) / intensidad', 'Dificultad percibida']));
+  state.history.filter(log => !log._sessionPending).forEach(log => {
+    lines.push(row([
+      (log.date || '').slice(0, 10),
+      isExtraCardio(log) ? 'Cardio libre' : routineName(log.routineId),
+      log.exerciseName || log.exerciseId,
+      log.setIndex,
+      log.reps,
+      log.weight,
+      difficultyLabels[log.difficulty] || log.difficulty || ''
+    ]));
   });
-  // Codificar y descargar
-  const encodedUri = encodeURI(csvContent);
+
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `FitActive_Reporte_Rafael_${getLocalDateString()}.csv`);
+  link.href = url;
+  link.download = `FitActive_Reporte_Rafael_${getLocalDateString()}.csv`;
   document.body.appendChild(link);
-  
   link.click();
-  document.body.removeChild(link);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // ==========================================
@@ -1896,10 +2295,26 @@ function renderSettingsPanel() {
   document.getElementById('input-alert-time').value = state.settings.notifyTime;
   if (document.getElementById('input-user-height')) document.getElementById('input-user-height').value = state.settings.userHeight || 174;
   if (document.getElementById('input-user-age')) document.getElementById('input-user-age').value = state.settings.userAge || '';
+  renderPlanStartField();
 
   // 3. Cargar toggles de audio/alerta
   document.getElementById('toggle-sound').checked = state.settings.soundEnabled;
   document.getElementById('toggle-push').checked = state.settings.notificationsEnabled;
+}
+
+// Campo "Inicio del plan actual" y en qué semana del plan vas
+function renderPlanStartField() {
+  const input = document.getElementById('input-plan-start');
+  const help = document.getElementById('plan-start-help');
+  if (!input || !help) return;
+  input.value = state.settings.planStart || '';
+  const start = getPlanStartDate();
+  const week = weeksSincePlanStart() + 1;
+  const sets = week >= 3 ? '3 series en los principales' : '2 series';
+  const origin = state.settings.planStart ? 'Fecha puesta a mano' : 'Vacío = desde tu primer entreno con este plan';
+  help.textContent = start
+    ? `${origin} · Inicio: ${formatDateString(start)} · Semana ${week}: ${sets}.`
+    : `${origin} (aún no hay ninguno) · Semana 1: 2 series.`;
 }
 
 function saveAppSettings() {
@@ -1910,6 +2325,8 @@ function saveAppSettings() {
 
   const userHeight = parseInt(document.getElementById('input-user-height').value) || 174;
   const userAge = parseInt(document.getElementById('input-user-age').value) || null;
+  // null (no borrar la clave): la nube fusiona los ajustes y la recuperaría
+  const planStart = document.getElementById('input-plan-start').value || null;
   const notifyTime = document.getElementById('input-alert-time').value;
   const soundEnabled = document.getElementById('toggle-sound').checked;
   const notificationsEnabled = document.getElementById('toggle-push').checked;
@@ -1917,67 +2334,138 @@ function saveAppSettings() {
   state.settings.scheduleDays = selectedDays;
   state.settings.userHeight = userHeight;
   state.settings.userAge = userAge;
+  state.settings.planStart = planStart;
   state.settings.notifyTime = notifyTime;
   state.settings.soundEnabled = soundEnabled;
   state.settings.notificationsEnabled = notificationsEnabled;
 
   saveStateToStorage('settings');
-  alert("Configuración guardada correctamente.");
+  renderPlanStartField();
   updateDashboard();
+
+  // Activar el aviso sin permiso del navegador no serviría de nada: pedirlo ya
+  if (notificationsEnabled && "Notification" in window && Notification.permission !== "granted") {
+    requestAndTestNotifications();
+    return;
+  }
+  alert("Configuración guardada correctamente.");
+}
+
+// Muestra una notificación del sistema. En Android, Chrome no permite
+// `new Notification()` (lanza "Illegal constructor"): hay que mostrarla desde
+// el service worker. El constructor queda solo para escritorio sin service worker.
+async function showAppNotification(title, options = {}) {
+  const opts = Object.assign({ icon: 'icon-512.png' }, options);
+  const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+  if (reg) return reg.showNotification(title, opts);
+  new Notification(title, opts);
+}
+
+// "Ahora no" en la barra de alertas: no volver a mostrarla en este dispositivo
+// (se pueden activar igualmente desde Ajustes)
+function dismissPermissionBar() {
+  const bar = document.getElementById('alert-permission-bar');
+  if (bar) bar.style.display = 'none';
+  try { localStorage.setItem('kf_alert_bar_dismissed', '1'); } catch (e) {}
 }
 
 // Solicitar permisos de notificación nativos y enviar notificación de prueba
-function requestAndTestNotifications() {
+async function requestAndTestNotifications() {
   if (!("Notification" in window)) {
-    alert("Este navegador no soporta notificaciones de escritorio.");
+    alert("Este navegador no soporta notificaciones.");
     return;
   }
 
-  Notification.requestPermission().then(permission => {
-    if (permission === "granted") {
-      new Notification("🏋️‍♂️ FitActive Activado", {
-        body: "¡Hola Rafael! Las alertas de entrenamiento están configuradas correctamente.",
-        icon: "https://cdn-icons-png.flaticon.com/512/3043/3043231.png" // Icono de mancuerna representativo
-      });
-      state.settings.notificationsEnabled = true;
-      document.getElementById('toggle-push').checked = true;
-      saveStateToStorage('settings');
-    } else {
-      alert("Permiso de notificaciones rechazado.");
-    }
-  });
+  const permission = await Notification.requestPermission();
+  const bar = document.getElementById('alert-permission-bar');
+  if (bar && permission !== 'default') bar.style.display = 'none';
+
+  if (permission !== "granted") {
+    alert(permission === "denied"
+      ? "Las notificaciones están bloqueadas para esta web. Actívalas en los ajustes del navegador (icono junto a la dirección)."
+      : "No se ha concedido el permiso de notificaciones.");
+    return;
+  }
+
+  state.settings.notificationsEnabled = true;
+  const toggle = document.getElementById('toggle-push');
+  if (toggle) toggle.checked = true;
+  saveStateToStorage('settings');
+
+  try {
+    await showAppNotification("🏋️‍♂️ FitActive activado", {
+      body: "¡Hola Rafael! Te avisaré a la hora de entreno los días que tengas marcados."
+    });
+  } catch (err) {
+    console.error('No se pudo mostrar la notificación:', err);
+    alert("Permiso concedido, pero el navegador no dejó mostrar la notificación de prueba.");
+  }
 }
 
-// Comprueba si a la hora actual le toca entrenar y envía la notificación nativa
+// Comprueba si toca avisar de entreno. Se llama cada minuto, pero en segundo
+// plano el móvil retrasa ese intervalo, así que no se exige el minuto exacto:
+// se avisa una vez al día, hasta 30 min después de la hora fijada.
 function checkTrainingNotification() {
   if (!state.settings.notificationsEnabled) return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
 
   const now = new Date();
-  const currentDay = now.getDay(); // 0=Domingo, 1=Lunes, etc.
-  
-  // Comprobar si hoy es día de entrenamiento
-  if (!state.settings.scheduleDays.includes(currentDay)) return;
+  if (!(state.settings.scheduleDays || []).includes(now.getDay())) return;
 
-  const [targetHour, targetMin] = state.settings.notifyTime.split(':').map(Number);
-  const currentHour = now.getHours();
-  const currentMin = now.getMinutes();
+  const [targetHour, targetMin] = String(state.settings.notifyTime || '').split(':').map(Number);
+  if (isNaN(targetHour)) return;
+  const minutesLate = (now.getHours() * 60 + now.getMinutes()) - (targetHour * 60 + (targetMin || 0));
+  if (minutesLate < 0 || minutesLate > 30) return;
 
-  // Comprobar si coincide la hora exacta (se ejecuta una vez por minuto)
-  if (currentHour === targetHour && currentMin === targetMin) {
-    new Notification("🏋️‍♂️ ¡Hora de Entrenar, Rafael!", {
-      body: "Es hora de tu rutina de FitActive. ¡Ponte tus zapatillas y a por ello!",
-      requireInteraction: true
-    });
-  }
+  const today = getLocalDateString(now);
+  if (localStorage.getItem('kf_last_reminder') === today) return;
+  // Si ya estás entrenando o ya has entrenado hoy, no hace falta avisar
+  const trainedToday = state.history.some(l => !isExtraCardio(l) && (l.date || '').slice(0, 10) === today);
+  if (state.currentWorkout || trainedToday) return;
+
+  localStorage.setItem('kf_last_reminder', today);
+  showAppNotification("🏋️‍♂️ ¡Hora de entrenar, Rafael!", {
+    body: "Es hora de tu rutina de FitActive. ¡Ponte las zapatillas y a por ello!",
+    tag: 'fitactive-reminder',
+    requireInteraction: true
+  }).catch(err => console.error('No se pudo mostrar el aviso de entreno:', err));
 }
 
-// Restablecer datos completos a valores de fábrica
-function resetAllApplicationData() {
-  if (confirm("🚨 ¿ATENCIÓN: Estás completamente seguro de borrar TODO tu historial de pesos y rutinas? Esta acción no se puede deshacer.")) {
-    localStorage.clear();
-    location.reload();
+// Restablecer datos de fábrica: borra el historial aquí, en la nube y (al
+// sincronizar) en los demás dispositivos. Sin borrar la nube no sirve: al
+// recargar, la sincronización volvería a descargarlo todo.
+async function resetAllApplicationData() {
+  if (!confirm("🚨 Esto borra TODO tu historial de entrenos y de báscula: en este dispositivo, en la nube y en tus otros dispositivos. No se puede deshacer.\n\nSi quieres guardar una copia, exporta antes el CSV en Informes.\n\n¿Continuar?")) return;
+  const typed = prompt('Para confirmar, escribe BORRAR');
+  if ((typed || '').trim().toUpperCase() !== 'BORRAR') return;
+
+  const resetAt = Date.now();
+
+  if (window.firebaseDb) {
+    try {
+      const docRef = getCloudDocRef();
+      // Sin conexión, getDoc falla enseguida; setDoc se quedaría esperando
+      await window.firebaseGetDoc(docRef);
+      // Sin merge: sustituye el documento entero
+      await window.firebaseSetDoc(docRef, {
+        routines: INITIAL_ROUTINES,
+        history: [],
+        weight: [],
+        settings: { routinesVersion: ROUTINES_VERSION },
+        resetAt
+      });
+    } catch (error) {
+      console.error('No se pudo borrar la copia de la nube:', error);
+      alert("No se pudo borrar la copia de la nube (¿sin conexión?). No se ha borrado nada: inténtalo de nuevo con internet.");
+      return;
+    }
+  } else if (!confirm("No hay conexión con la nube: solo se borrará este dispositivo, y la copia de la nube volverá a descargarse al sincronizar. ¿Borrar solo este dispositivo?")) {
+    return;
   }
+
+  localStorage.clear();
+  localStorage.setItem(RESET_SEEN_KEY, String(resetAt));
+  location.reload();
 }
 
 // ==========================================
@@ -2117,7 +2605,8 @@ function runTesseractOCR(imageSrc) {
     // Cargar Tesseract.js dinámicamente bajo demanda
     statusLabel.textContent = 'Descargando módulo de escaneo...';
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    // Versión exacta: "@5" bajaría cualquier 5.x nueva sin probar
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
     script.onload = () => {
       startOCR();
     };
@@ -2296,6 +2785,127 @@ function calculateDynamicStartWeight(baseWeight, muscle) {
   return Math.max(baseWeight, Math.round(dynamicWeight * 2) / 2);
 }
 
+// Día tocado en el calendario ("AAAA-MM-DD") o null
+let selectedCalendarDate = null;
+
+// Series de un día del calendario, agrupadas por sesión, con peso y
+// repeticiones editables y botones para borrar una serie o la sesión entera
+function renderCalendarDayDetail() {
+  const el = document.getElementById('calendar-day-detail');
+  if (!el) return;
+  if (!selectedCalendarDate) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+
+  const logs = state.history.filter(l => !l._sessionPending && (l.date || '').slice(0, 10) === selectedCalendarDate);
+  const head = `
+    <div class="day-detail-head">
+      <h4>${formatDateWithYear(selectedCalendarDate, { weekday: 'long', day: 'numeric', month: 'long' })}</h4>
+      <button type="button" class="btn-icon" data-close-detail aria-label="Cerrar">✕</button>
+    </div>`;
+  el.style.display = 'block';
+
+  if (logs.length === 0) {
+    el.innerHTML = head + '<div class="records-empty">Sin series registradas este día.</div>';
+  } else {
+    const exercisesById = {};
+    state.routines.forEach(r => r.exercises.forEach((ex, i) => { exercisesById[ex.id] = { ex, order: i }; }));
+
+    const sessions = new Map();
+    logs.forEach(l => {
+      const sid = String(l.sessionId || l.routineId || 'sesion');
+      if (!sessions.has(sid)) sessions.set(sid, []);
+      sessions.get(sid).push(l);
+    });
+
+    el.innerHTML = head + [...sessions.entries()].map(([sid, list]) => {
+      const first = list[0];
+      const routine = state.routines.find(r => r.id === first.routineId);
+      const title = isExtraCardio(first) ? 'Cardio libre' : (routine ? routine.name : (first.routineId || 'Entreno'));
+      const orderOf = l => (exercisesById[l.exerciseId] ? exercisesById[l.exerciseId].order : 99);
+      const rows = list
+        .sort((a, b) => orderOf(a) - orderOf(b) || (a.setIndex || 0) - (b.setIndex || 0))
+        .map(l => {
+          const ex = exercisesById[l.exerciseId] && exercisesById[l.exerciseId].ex;
+          const cardio = isExtraCardio(l) || (ex && ex.muscle === 'cardio');
+          const weightField = isExtraCardio(l) ? '' : `
+            <label class="day-set-field"><input type="number" step="0.5" min="0" value="${l.weight}" data-field="weight" aria-label="Peso"> ${cardio ? ((ex && ex.intensityUnit) || 'nivel') : 'kg'}</label>`;
+          return `
+            <div class="day-set-row" data-key="${historyLogKey(l)}">
+              <span class="day-set-name">${l.exerciseName || l.exerciseId}<small>Serie ${l.setIndex || 1}</small></span>
+              ${weightField}
+              <label class="day-set-field"><input type="number" min="0" value="${l.reps}" data-field="reps" aria-label="${cardio ? 'Minutos' : 'Repeticiones'}"> ${cardio ? 'min' : 'reps'}</label>
+              <button type="button" class="btn-icon day-set-delete" data-delete-log aria-label="Borrar serie">🗑</button>
+            </div>`;
+        }).join('');
+      return `
+        <div class="day-session">
+          <div class="day-session-head">
+            <strong>${title}</strong>
+            <button type="button" class="btn btn-secondary btn-sm btn-danger-soft" data-delete-session="${sid}">Borrar sesión</button>
+          </div>
+          ${rows}
+        </div>`;
+    }).join('');
+  }
+
+  const findLog = node => {
+    const row = node.closest('[data-key]');
+    return row ? state.history.find(l => !l._sessionPending && historyLogKey(l) === row.dataset.key) : null;
+  };
+
+  // Corregir peso o repeticiones de una serie
+  el.onchange = (e) => {
+    const input = e.target.closest('input[data-field]');
+    if (!input) return;
+    const log = findLog(input);
+    if (!log) return;
+    const field = input.dataset.field;
+    const value = field === 'reps' ? parseInt(input.value) : parseFloat(input.value);
+    if (!(value >= 0)) {
+      input.value = log[field];
+      return;
+    }
+    log[field] = value;
+    log.updatedAt = Date.now(); // en la sincronización gana la versión más reciente
+    saveStateToStorage('history');
+  };
+
+  el.onclick = (e) => {
+    if (e.target.closest('[data-close-detail]')) {
+      selectedCalendarDate = null;
+      renderCalendar();
+      return;
+    }
+    const delLog = e.target.closest('[data-delete-log]');
+    if (delLog) {
+      const log = findLog(delLog);
+      if (log && confirm(`¿Borrar la serie ${log.setIndex || 1} de «${log.exerciseName || log.exerciseId}»?`)) deleteHistoryLogs([log]);
+      return;
+    }
+    const delSession = e.target.closest('[data-delete-session]');
+    if (delSession) {
+      const sid = delSession.dataset.deleteSession;
+      const list = logs.filter(l => String(l.sessionId || l.routineId || 'sesion') === sid);
+      if (list.length && confirm(`¿Borrar la sesión entera (${list.length} ${list.length === 1 ? 'serie' : 'series'})? No se puede deshacer.`)) deleteHistoryLogs(list);
+    }
+  };
+}
+
+// Borra series del historial dejando constancia, para que la sincronización
+// no las vuelva a traer de la nube o de otro dispositivo
+function deleteHistoryLogs(logs) {
+  const now = Date.now();
+  const keys = new Set(logs.map(historyLogKey));
+  keys.forEach(k => { state.deleted.history[k] = now; });
+  state.history = state.history.filter(l => l._sessionPending || !keys.has(historyLogKey(l)));
+  saveStateToStorage('history');
+  renderCalendar();
+  updateDashboard();
+}
+
 let currentDate = new Date();
 let currentMonth = currentDate.getMonth();
 let currentYear = currentDate.getFullYear();
@@ -2347,11 +2957,22 @@ function renderCalendar() {
       classes.push('planned');
     }
     if (dateStr === todayStr) classes.push('today');
+    if (dateStr === selectedCalendarDate) classes.push('selected');
 
-    html += `<div class="${classes.join(' ')}"><span class="cal-num">${day}</span>${tag ? `<span class="cal-tag">${tag}</span>` : ''}</div>`;
+    html += `<button type="button" class="${classes.join(' ')}" data-date="${dateStr}" aria-label="${formatDateWithYear(dateStr, { day: 'numeric', month: 'long' })}"><span class="cal-num">${day}</span>${tag ? `<span class="cal-tag">${tag}</span>` : ''}</button>`;
   }
 
   daysEl.innerHTML = html;
+
+  // Tocar un día muestra sus series (para corregirlas o borrarlas)
+  daysEl.onclick = (e) => {
+    const cell = e.target.closest('.cal-day[data-date]');
+    if (!cell) return;
+    selectedCalendarDate = selectedCalendarDate === cell.dataset.date ? null : cell.dataset.date;
+    renderCalendar();
+  };
+  if (selectedCalendarDate && !selectedCalendarDate.startsWith(monthPrefix)) selectedCalendarDate = null;
+  renderCalendarDayDetail();
 
   // Resumen del mes: días entrenados y reparto por rutina
   if (summaryEl) {

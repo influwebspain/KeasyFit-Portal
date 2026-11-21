@@ -236,13 +236,15 @@ function renderVolumeChart(canvas, history) {
   // Agrupar por semana
   const volumePerWeek = {};
   
-  // Clave "AAAA-SS" con ceros para que el orden alfabético sea cronológico
+  // Clave = lunes de la semana ("AAAA-MM-DD"): el orden alfabético es el
+  // cronológico también al cambiar de año. Con "año-semana ISO" los días
+  // 1-3 de enero de 2027 (semana 53 de 2026) se ordenaban al final.
   const weekLabels = {};
   history.forEach(log => {
-    const dateObj = new Date(log.date);
-    const weekNum = getWeekNumber(dateObj);
-    const weekKey = `${dateObj.getFullYear()}-${String(weekNum).padStart(2, '0')}`;
-    weekLabels[weekKey] = `Sem ${weekNum}`;
+    if (!log.date) return;
+    const weekKey = getWeekStartKey(log.date); // en app.js
+    const [y, m, d] = weekKey.split('-').map(Number);
+    weekLabels[weekKey] = `Sem ${getWeekNumber(new Date(y, m - 1, d))}`;
     
     const repsNum = parseInt(log.reps) || 0;
     const weightNum = parseFloat(log.weight) || 0;

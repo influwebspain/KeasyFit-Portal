@@ -1,5 +1,8 @@
 // FitActive Service Worker — Cache Offline-First
-const CACHE_NAME = 'fitactive-v3';
+// IMPORTANTE: sube este número cada vez que cambies cualquier archivo de la
+// app (HTML, CSS o JS). Si no, el móvil sigue abriendo la versión anterior la
+// primera vez y no aparece el aviso de "versión nueva".
+const CACHE_NAME = 'fitactive-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -30,6 +33,17 @@ self.addEventListener('activate', event => {
         keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       );
     }).then(() => self.clients.claim())
+  );
+});
+
+// Al tocar un aviso de entreno: volver a la app si está abierta, o abrirla
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+      const open = windows.find(w => 'focus' in w);
+      return open ? open.focus() : self.clients.openWindow('/');
+    })
   );
 });
 
