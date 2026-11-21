@@ -2127,55 +2127,36 @@ function parseAiLinkText(text) {
     bodyAge: null
   };
 
-  // Convertir a minúsculas y normalizar espacios en blanco
-  const cleanText = text.toLowerCase().replace(/\s+/g, ' ');
+  // Minúsculas, espacios normalizados y sin acentos (el OCR a veces los pierde)
+  const cleanText = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 
-  // 1. Filtrar Peso (busca "peso actual", "peso" o patrón de 3 cifras seguido de kg)
-  const weightMatch = cleanText.match(/(?:peso actual|peso|actual)\s*:?\s*(\d{2,3}[\.,]\d)/i) || cleanText.match(/(\d{2,3}[\.,]\d)\s*kg/i);
-  if (weightMatch) {
-    result.weight = parseFloat(weightMatch[1].replace(',', '.'));
-  }
+  // Cada campo: lista de patrones en orden de preferencia. La etiqueta debe ir
+  // seguida de su valor (como mucho 12 caracteres que no sean dígitos), y el
+  // valor se valida con un rango razonable para no coger otros números.
+  const fields = {
+    weight: { re: [/peso actual[^0-9]{0,12}(\d{2,3}[.,]\d)/, /peso(?! est)[^0-9]{0,12}(\d{2,3}[.,]\d)/], min: 30, max: 250 },
+    bmi: { re: [/\bimc[^0-9]{0,12}(\d{1,2}[.,]\d)/], min: 10, max: 80 },
+    // Porcentaje de grasa: exige "%" para no confundir con "Grasa corporal 60.9kg" (kilos)
+    fat: { re: [/porcentaje de grasa[^0-9]{0,20}(\d{1,2}[.,]\d)\s*%/, /grasa corporal[^0-9]{0,12}(\d{1,2}[.,]\d)\s*%/, /porcentaje de grasa[^0-9]{0,20}(\d{1,2}[.,]\d)/], min: 3, max: 70 },
+    muscle: { re: [/masa muscular[^0-9]{0,12}(\d{2,3}[.,]\d)/], min: 5, max: 200 },
+    leanMass: { re: [/masa corporal magra[^0-9]{0,12}(\d{2,3}[.,]\d)/, /masa magra[^0-9]{0,12}(\d{2,3}[.,]\d)/], min: 10, max: 200 },
+    // Grasa visceral: entero, sin decimales (evita "20.0" de la grasa subcutánea)
+    visceral: { re: [/grasa visceral[^0-9]{0,12}(\d{1,2})(?![.,]\d)/, /visceral[^0-9]{0,12}(\d{1,2})(?![.,]\d)/], min: 1, max: 60 },
+    water: { re: [/humedad[^0-9]{0,12}(\d{1,2}[.,]\d)/, /agua[^0-9]{0,12}(\d{1,2}[.,]\d)/], min: 10, max: 80 },
+    // Edad corporal (metabólica), NO la edad real que aparece en la cabecera
+    bodyAge: { re: [/edad del cuerpo[^0-9]{0,12}(\d{2})(?!\d)/, /edad corporal[^0-9]{0,12}(\d{2})(?!\d)/], min: 10, max: 99 }
+  };
 
-  // 2. Filtrar IMC
-  const imcMatch = cleanText.match(/imc\s*:?\s*(\d{2}[\.,]\d)/i);
-  if (imcMatch) {
-    result.bmi = parseFloat(imcMatch[1].replace(',', '.'));
-  }
-
-  // 3. Filtrar Grasa corporal
-  const fatMatch = cleanText.match(/(?:porcent|grasa corporal|porcentaje de grasa)\s*:?\s*(\d{2}[\.,]\d)\s*%/i) || cleanText.match(/(?:porcent|grasa corporal|grasa)\s*:?\s*(\d{2}[\.,]\d)/i);
-  if (fatMatch) {
-    result.fat = parseFloat(fatMatch[1].replace(',', '.'));
-  }
-
-  // 4. Filtrar Masa muscular
-  const muscleMatch = cleanText.match(/(?:masa muscular|muscular)\s*:?\s*(\d{2,3}[\.,]\d)/i);
-  if (muscleMatch) {
-    result.muscle = parseFloat(muscleMatch[1].replace(',', '.'));
-  }
-
-  // 5. Filtrar Masa corporal magra
-  const leanMatch = cleanText.match(/(?:masa corporal magra|magra|corporal magra)\s*:?\s*(\d{2,3}[\.,]\d)/i);
-  if (leanMatch) {
-    result.leanMass = parseFloat(leanMatch[1].replace(',', '.'));
-  }
-
-  // 6. Filtrar Grasa visceral
-  const visceralMatch = cleanText.match(/(?:grasa visceral|indice de gr|visceral)\s*:?\s*(\d{1,2})/i);
-  if (visceralMatch) {
-    result.visceral = parseInt(visceralMatch[1]);
-  }
-
-  // 7. Filtrar Agua / Humedad
-  const waterMatch = cleanText.match(/(?:humedad|agua)\s*:?\s*(\d{2}[\.,]\d)/i);
-  if (waterMatch) {
-    result.water = parseFloat(waterMatch[1].replace(',', '.'));
-  }
-
-  // 8. Filtrar Edad corporal
-  const ageMatch = cleanText.match(/(?:edad del cu|edad corporal|edad del cuerpo|edad)\s*:?\s*(\d{2})/i);
-  if (ageMatch) {
-    result.bodyAge = parseInt(ageMatch[1]);
+  for (const [key, def] of Object.entries(fields)) {
+    for (const re of def.re) {
+      const m = cleanText.match(re);
+      if (!m) continue;
+      const value = parseFloat(m[1].replace(',', '.'));
+      if (value >= def.min && value <= def.max) {
+        result[key] = key === 'visceral' || key === 'bodyAge' ? Math.round(value) : value;
+        break;
+      }
+    }
   }
 
   return result;
