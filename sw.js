@@ -1,5 +1,5 @@
 // FitActive Service Worker — Cache Offline-First
-const CACHE_NAME = 'fitactive-v1';
+const CACHE_NAME = 'fitactive-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

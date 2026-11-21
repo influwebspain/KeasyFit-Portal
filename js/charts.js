@@ -15,6 +15,12 @@ const chartStyles = {
   tooltipBody: '#334155'
 };
 
+// En móvil se ocultan leyenda y títulos de eje: el título de la tarjeta ya
+// dice qué se muestra y así el gráfico aprovecha todo el ancho.
+function isNarrowScreen() {
+  return window.innerWidth <= 768;
+}
+
 /**
  * Convierte color hex en formato rgba
  */
@@ -91,6 +97,7 @@ function renderWeightChart(canvas, history, selectedMetric = 'weight') {
       maintainAspectRatio: false,
       plugins: {
         legend: {
+          display: !isNarrowScreen(),
           labels: {
             color: chartStyles.textColor,
             font: { family: chartStyles.fontFamily, size: 12 }
@@ -115,7 +122,7 @@ function renderWeightChart(canvas, history, selectedMetric = 'weight') {
           grid: { color: chartStyles.gridColor },
           ticks: { color: chartStyles.textColor, font: { family: chartStyles.fontFamily } },
           title: {
-            display: true,
+            display: !isNarrowScreen(),
             text: config.label,
             color: chartStyles.textColor,
             font: { family: chartStyles.fontFamily, weight: 'bold' }
@@ -182,6 +189,7 @@ function renderStrengthChart(canvas, history, exerciseName) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
+          display: !isNarrowScreen(),
           labels: {
             color: chartStyles.textColor,
             font: { family: chartStyles.fontFamily }
@@ -202,7 +210,7 @@ function renderStrengthChart(canvas, history, exerciseName) {
           grid: { color: chartStyles.gridColor },
           ticks: { color: chartStyles.textColor, font: { family: chartStyles.fontFamily } },
           title: {
-            display: true,
+            display: !isNarrowScreen(),
             text: 'Peso Levantado (kg)',
             color: chartStyles.textColor,
             font: { family: chartStyles.fontFamily, weight: 'bold' }
@@ -228,10 +236,13 @@ function renderVolumeChart(canvas, history) {
   // Agrupar por semana
   const volumePerWeek = {};
   
+  // Clave "AAAA-SS" con ceros para que el orden alfabético sea cronológico
+  const weekLabels = {};
   history.forEach(log => {
     const dateObj = new Date(log.date);
     const weekNum = getWeekNumber(dateObj);
-    const weekKey = `Semana ${weekNum} (${dateObj.getFullYear()})`;
+    const weekKey = `${dateObj.getFullYear()}-${String(weekNum).padStart(2, '0')}`;
+    weekLabels[weekKey] = `Sem ${weekNum}`;
     
     const repsNum = parseInt(log.reps) || 0;
     const weightNum = parseFloat(log.weight) || 0;
@@ -244,7 +255,7 @@ function renderVolumeChart(canvas, history) {
   });
 
   const sortedWeeks = Object.keys(volumePerWeek).sort();
-  const labels = sortedWeeks;
+  const labels = sortedWeeks.map(week => weekLabels[week]);
   const volumes = sortedWeeks.map(week => volumePerWeek[week]);
 
   const ctx = canvas.getContext('2d');
@@ -270,6 +281,7 @@ function renderVolumeChart(canvas, history) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
+          display: !isNarrowScreen(),
           labels: {
             color: chartStyles.textColor,
             font: { family: chartStyles.fontFamily }
@@ -290,7 +302,7 @@ function renderVolumeChart(canvas, history) {
           grid: { color: chartStyles.gridColor },
           ticks: { color: chartStyles.textColor, font: { family: chartStyles.fontFamily } },
           title: {
-            display: true,
+            display: !isNarrowScreen(),
             text: 'Tonelaje total (kg)',
             color: chartStyles.textColor,
             font: { family: chartStyles.fontFamily, weight: 'bold' }

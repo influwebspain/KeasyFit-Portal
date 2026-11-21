@@ -23,7 +23,7 @@ El diseño está optimizado tanto para ordenadores como para **móviles**, permi
    - Progresión de fuerza (peso máximo levantado) para cada ejercicio individual.
    - **Exportación en CSV**: Descarga tu historial completo para abrirlo en Excel.
 6. **Planificador y Alertas**: Configuración de los días que entrenas y la hora de aviso para recibir notificaciones push en el navegador.
-7. **Editor de Rutinas Completo**: CRUD visual para añadir, eliminar o reordenar ejercicios cada 4 semanas para adaptar tu entrenamiento.
+7. **Rutinas definidas en código**: el plan vive en `js/data.js`; al cambiarlo se sube `ROUTINES_VERSION` y la app sustituye las rutinas guardadas (local y Firebase).
 
 ---
 

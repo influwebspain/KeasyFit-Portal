@@ -1099,52 +1099,6 @@ body {
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
-/* Editor de Rutina (Manage Routines) */
-.editor-routine-selector {
-  display: flex;
-  gap: 0.6rem;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
-}
-
-.editor-table-container {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.editor-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.editor-table th, .editor-table td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.editor-table th {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
-  font-weight: 700;
-  background: var(--bg-subtle);
-}
-
-.editor-table td {
-  font-size: 0.875rem;
-}
-
-.editor-table tbody tr:hover {
-  background: #fafcfe;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.35rem;
-}
-
 .btn-icon {
   background: none;
   border: none;
@@ -1163,61 +1117,6 @@ body {
 .btn-icon.danger:hover {
   color: var(--danger);
   background: rgba(185, 28, 28, 0.08);
-}
-
-/* Diálogo Modal de Añadir Ejercicio */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(15, 23, 42, 0.45);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-  backdrop-filter: blur(2px);
-}
-
-.modal-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.modal-box {
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  padding: 1.75rem;
-  border-radius: 16px;
-  width: 500px;
-  max-width: 92%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.25rem;
-}
-
-.modal-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.6rem;
-  margin-top: 1.25rem;
 }
 
 /* Pestaña de Configuración / Alertas */
@@ -1326,13 +1225,225 @@ body {
 }
 
 /* ==========================================
+   CALENDARIO DE CONSISTENCIA
+   ========================================== */
+
+.calendar-container {
+  max-width: 720px;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.calendar-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-align: center;
+  flex: 1;
+}
+
+.calendar-header .btn-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.calendar-header .btn-icon:hover {
+  background: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.calendar-weekdays span {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 0.35rem 0;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-day {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+  background: var(--bg-subtle);
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+  transition: background var(--transition-fast);
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1;
+}
+
+.cal-day.empty {
+  background: transparent;
+}
+
+/* Letra de la rutina hecha ese día (A, B, C) */
+.cal-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+/* Día planificado (según Ajustes) que aún no ha llegado */
+.cal-day.planned {
+  background: #ffffff;
+  border: 1.5px dashed rgba(4, 120, 87, 0.45);
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.9rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  vertical-align: -2px;
+  margin-right: 0.3rem;
+}
+
+.legend-dot.trained { background: var(--primary-solid); }
+.legend-dot.today { border: 2px solid var(--primary); }
+.legend-dot.planned { border: 1.5px dashed rgba(4, 120, 87, 0.55); }
+
+.calendar-summary {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.cal-stat strong {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-right: 0.15rem;
+}
+
+.cal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cal-chip {
+  background: rgba(5, 150, 105, 0.09);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+}
+
+/* Día con entrenamiento registrado */
+.cal-day.workout-day {
+  background: var(--primary-solid);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Día de hoy (no entrenado) */
+.cal-day.today {
+  border: 2px solid var(--primary);
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Hoy + entrenado */
+.cal-day.today.workout-day {
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.22);
+}
+
+@media (max-width: 768px) {
+  .calendar-container {
+    max-width: 100%;
+  }
+
+  .calendar-days,
+  .calendar-weekdays {
+    gap: 3px;
+  }
+
+  .cal-day {
+    font-size: 0.8rem;
+    border-radius: 6px;
+  }
+
+  .calendar-weekdays span {
+    font-size: 0.6rem;
+    padding: 0.25rem 0;
+  }
+
+  .calendar-header h3 {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .cal-day {
+    font-size: 0.72rem;
+  }
+}
+
+/* ==========================================
    RESPONSIVE: PANTALLAS MÓVILES
    ========================================== */
 @media (max-width: 768px) {
   /* Layout principal */
   .app-container {
     flex-direction: column;
-    padding-bottom: 72px; /* Espacio para barra de navegación móvil fija */
+    /* 72px de barra + holgura para que el último contenido no quede tapado
+       por la barra del navegador móvil ni por el safe-area del iPhone */
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
 
   /* OCULTAR COMPLETAMENTE el sidebar en móvil — la navegación es la barra inferior */
@@ -1369,6 +1480,27 @@ body {
   .card {
     padding: 0.9rem;
     border-radius: 12px;
+  }
+
+  /* Métricas: mantener 2 columnas en móvil para que el formulario no
+     ocupe varias pantallas de alto (se apila solo en <400px) */
+  .form-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.7rem;
+  }
+
+  .form-label {
+    font-size: 0.68rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .form-control-full {
+    padding: 0.55rem 0.6rem;
+    font-size: 0.9rem;
   }
 
   /* Dashboard grid en 1 columna */
@@ -1476,29 +1608,9 @@ body {
     width: 100%;
   }
 
-  /* Editor: selector de rutinas horizontal con scroll */
-  .editor-routine-selector {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap;
-    padding-bottom: 0.5rem;
-  }
-
-  .editor-routine-selector .btn {
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
   /* Settings en 1 columna */
   .settings-grid {
     grid-template-columns: 1fr;
-  }
-
-  /* Modal en móvil: full-width y scrollable */
-  .modal-box {
-    width: 95%;
-    max-height: 85vh;
-    padding: 1.25rem;
   }
 
   /* Alert bar responsive */
@@ -1511,19 +1623,6 @@ body {
 
   .alert-bar-text {
     font-size: 0.8rem;
-  }
-
-  /* Tablas: asegurar scroll horizontal */
-  .comparison-table-wrapper,
-  .general-report-table-wrapper,
-  .editor-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .comparison-table,
-  .general-report-table {
-    min-width: 600px;
   }
 
   /* ===== BARRA DE NAVEGACIÓN INFERIOR MÓVIL ===== */
@@ -1659,7 +1758,8 @@ body {
   gap: 0.85rem;
 }
 
-@media (max-width: 576px) {
+/* Solo en pantallas muy estrechas los campos se apilan a 1 columna */
+@media (max-width: 340px) {
   .form-grid-2 {
     grid-template-columns: 1fr;
   }
@@ -1726,49 +1826,6 @@ body {
 
 .delta-cell.neutral-stable {
   color: var(--text-muted);
-}
-
-/* Tabla General de Progresión de Fuerza del Gimnasio */
-.general-report-table-wrapper {
-  overflow-x: auto;
-  margin-top: 1rem;
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-}
-
-.general-report-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.85rem;
-}
-
-.general-report-table th, .general-report-table td {
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.general-report-table th {
-  background: var(--bg-subtle);
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
-}
-
-.general-report-table tr:hover {
-  background: #fafcfe;
-}
-
-.general-report-table td.muscle-badge-col span {
-  display: inline-block;
-  padding: 0.22rem 0.55rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .muscle-badge-back { background: rgba(3, 105, 161, 0.10); color: #075985; }
@@ -1856,6 +1913,409 @@ body {
 }
 
 /* ==========================================
+   COMPOSICIÓN, RESUMEN E INFORME DE FUERZA
+   ========================================== */
+
+/* Un hijo ancho (tabla, canvas) no debe ensanchar la rejilla: si la página
+   desborda en horizontal, Chrome Android agranda el viewport y la barra
+   inferior queda fuera de la pantalla. */
+.metrics-layout > *,
+.reports-grid > *,
+.dashboard-layout > *,
+.settings-grid > *,
+.charts-container > * {
+  min-width: 0;
+}
+
+.chart-canvas-box {
+  position: relative;
+  height: 300px;
+}
+
+.chart-canvas-box-lg {
+  flex-grow: 1;
+  height: 350px;
+}
+
+/* Composición corporal: tabla en escritorio, mosaicos en móvil */
+.inbody-tiles,
+.inbody-tiles-foot {
+  display: none;
+}
+
+.inbody-tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.inbody-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: var(--bg-subtle);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+}
+
+.inbody-tile-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.inbody-tile-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.inbody-tile-value small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 0.2rem;
+}
+
+.inbody-tile .delta-cell,
+.inbody-tile-base {
+  font-size: 0.78rem;
+}
+
+.inbody-tile-base {
+  color: var(--text-muted);
+}
+
+.inbody-tiles-foot {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.6rem;
+}
+
+/* Resumen de informes */
+.report-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.kpi-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.kpi-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.report-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.report-card-sub {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+/* Pestañas de día de rutina (Día A / B / C) */
+.day-tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg-subtle);
+  padding: 0.25rem;
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+}
+
+.day-tab {
+  flex: 1;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.day-tab:hover {
+  color: var(--text-main);
+}
+
+.day-tab.active {
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Lista de progreso de fuerza: solo se ve el grupo del día activo */
+.strength-group {
+  display: none;
+}
+
+.strength-group.active {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.strength-group-title {
+  display: none;
+}
+
+.strength-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-main);
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+button.strength-row:hover {
+  border-color: var(--border-active);
+  background: var(--bg-card-hover);
+}
+
+.strength-row.is-cardio {
+  grid-template-columns: minmax(0, 1fr) auto;
+  cursor: default;
+}
+
+.strength-row.no-data .strength-name {
+  color: var(--text-muted);
+}
+
+.strength-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.strength-spark {
+  display: flex;
+  color: var(--primary);
+}
+
+.sparkline {
+  display: block;
+}
+
+.strength-delta {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.strength-delta.neutral-stable {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.strength-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.strength-meta strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.strength-next strong {
+  color: var(--primary);
+}
+
+.strength-empty {
+  color: var(--text-muted);
+  padding: 1rem;
+  text-align: center;
+}
+
+.muscle-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 992px) {
+  .report-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  /* Aviso de notificaciones: una sola línea compacta */
+  .alert-bar {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .alert-bar-text {
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+
+  .alert-bar .btn {
+    flex-shrink: 0;
+  }
+
+  /* Composición corporal: mosaicos en lugar de la tabla */
+  .comparison-table-wrapper {
+    border: none;
+    overflow: visible;
+    margin-top: 0.5rem;
+  }
+
+  .comparison-table {
+    display: none;
+  }
+
+  .inbody-tiles {
+    display: grid;
+  }
+
+  .inbody-tiles-foot {
+    display: block;
+  }
+
+  /* Métricas: primero tu evolución y el gráfico, después el formulario */
+  .metrics-comparison-card {
+    order: -2;
+    margin-top: 0;
+  }
+
+  .metrics-layout .chart-card {
+    order: -1;
+  }
+
+  /* Escáner OCR compacto en una fila */
+  .ocr-drop-zone {
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .ocr-upload-icon {
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .ocr-text-main {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  .ocr-text-sub {
+    font-size: 0.72rem;
+  }
+
+  .form-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chart-canvas-box,
+  .chart-canvas-box-lg {
+    height: 220px;
+  }
+
+  .chart-card {
+    min-height: 0;
+  }
+
+  /* Informes */
+  .report-kpis {
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .kpi-tile {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .kpi-value {
+    font-size: 1.25rem;
+  }
+
+  .kpi-sub {
+    font-size: 0.7rem;
+  }
+
+  .strength-group.active {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .btn-group-no-print {
+    width: 100%;
+  }
+
+  .btn-group-no-print .btn {
+    flex: 1;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ==========================================
    10. HOJA DE ESTILOS DE IMPRESIÓN (PDF)
    ========================================== */
 
@@ -1876,7 +2336,6 @@ body {
   .chart-select,
   .ocr-drop-zone,
   #ocr-progress-container,
-  .modal-overlay,
   #alert-permission-bar,
   #weight-logger-form,
   .metrics-form-card h3,
@@ -1932,23 +2391,20 @@ body {
   }
 
   /* Estilo de Tablas en el PDF */
-  .comparison-table,
-  .general-report-table {
+  .comparison-table {
     width: 100% !important;
     color: #000000 !important;
     border-collapse: collapse !important;
   }
 
-  .comparison-table th,
-  .general-report-table th {
+  .comparison-table th {
     background: #f0f0f0 !important;
     color: #000000 !important;
     border: 1px solid #ccc !important;
     font-size: 8pt !important;
   }
 
-  .comparison-table td,
-  .general-report-table td {
+  .comparison-table td {
     border: 1px solid #ccc !important;
     background: none !important;
     color: #000000 !important;
@@ -1977,7 +2433,7 @@ body {
   }
 
   /* Badges e indicadores en grises limpios */
-  .general-report-table td.muscle-badge-col span {
+  .muscle-badge {
     background: #f0f0f0 !important;
     color: #000000 !important;
     border: 1px solid #bbb !important;
@@ -2002,6 +2458,42 @@ body {
   .chart-card {
     page-break-inside: avoid;
     height: 380px !important; /* Asegura espacio adecuado para pintar Chart.js */
+  }
+
+  /* En el PDF van todos los días de rutina, cada uno con su título */
+  .day-tabs {
+    display: none !important;
+  }
+
+  .strength-group {
+    display: block !important;
+    margin-bottom: 1rem;
+  }
+
+  .strength-group-title {
+    display: block !important;
+    font-size: 11pt;
+    margin: 0.6rem 0 0.4rem;
+  }
+
+  .strength-row {
+    border: 1px solid #ccc !important;
+    margin-bottom: 4px;
+    page-break-inside: avoid;
+  }
+
+  /* Composición: siempre la tabla completa */
+  .comparison-table {
+    display: table !important;
+  }
+
+  .inbody-tiles,
+  .inbody-tiles-foot {
+    display: none !important;
+  }
+
+  .report-kpis {
+    grid-template-columns: repeat(4, 1fr) !important;
   }
 }
 

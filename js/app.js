@@ -62,9 +62,8 @@ async function initApp() {
   // Actualizar dashboard y widgets
   try { updateDashboard(); } catch(e) { console.error('Error en updateDashboard:', e); }
 
-  // Pre-renderizar paneles de entrenamientos y editor para que estén listos
+  // Pre-renderizar el panel de entrenamientos para que esté listo
   try { renderWorkoutsList(); } catch(e) { console.error('Error pre-renderizando workouts:', e); }
-  try { renderEditorPanel(); } catch(e) { console.error('Error pre-renderizando editor:', e); }
 
   // PASO 2: Sincronizar desde Firebase EN SEGUNDO PLANO (no bloquea UI)
   syncFromFirebaseInBackground();
@@ -206,7 +205,6 @@ async function syncFromFirebaseInBackground() {
       if (needsRefresh) {
         console.log('Datos actualizados desde Firebase en segundo plano.');
         try { renderWorkoutsList(); } catch(e) {}
-        try { renderEditorPanel(); } catch(e) {}
         try { updateDashboard(); } catch(e) {}
       }
     } else {
@@ -341,8 +339,6 @@ function switchTab(tabId) {
       renderMetricsPanel();
     } else if (tabId === 'reports') {
       renderReportsPanel();
-    } else if (tabId === 'editor') {
-      renderEditorPanel();
     } else if (tabId === 'settings') {
       renderSettingsPanel();
     } else if (tabId === 'calendar') { renderCalendar(); }
@@ -414,15 +410,6 @@ function setupEventListeners() {
       exportDataToCSV();
     });
   }
-
-  // Cerrar Modales
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        overlay.classList.remove('active');
-      }
-    });
-  });
 }
 
 // ==========================================
@@ -1217,84 +1204,62 @@ function renderInBodyComparisonTable() {
   // La primera medición en la base de datos es la base (Start)
   const base = sorted[0];
   
-  // Tomar las últimas 4 mediciones (además de la base) para comparar.
-  // Si hay pocas, simplemente tomamos todas las que existan
-  let compareList = [];
-  if (sorted.length > 1) {
-    // Tomar las últimas 4 (excluyendo la primera si esta es la única, pero si solo hay 2, compareList tiene 1 elemento)
-    const lastEntries = sorted.slice(1);
-    compareList = lastEntries.slice(-4); // últimos 4 checkups
-  }
+  // Las últimas 4 mediciones (además de la base) para comparar
+  const compareList = sorted.slice(1).slice(-4);
+  const latestItem = compareList.length > 0 ? compareList[compareList.length - 1] : base;
 
-  // Definición de las filas y sus configuraciones de comparación
-  // key: propiedad, label: nombre fila, better: 'lower' o 'higher'
+  // key: propiedad, label: nombre fila (tabla), short: nombre en tarjeta (móvil),
+  // better: 'lower' o 'higher'
   const rowSchema = [
-    { key: 'weight', label: 'Peso Corporal', unit: 'kg', better: 'lower' },
-    { key: 'bmi', label: 'IMC', unit: '', better: 'lower' },
-    { key: 'fat', label: 'Grasa Corporal', unit: '%', better: 'lower' },
-    { key: 'muscle', label: 'Masa Muscular', unit: 'kg', better: 'higher' },
-    { key: 'leanMass', label: 'Masa Magra', unit: 'kg', better: 'higher' },
-    { key: 'visceral', label: 'Grasa Visceral', unit: '', better: 'lower' },
-    { key: 'water', label: 'Agua / Humedad', unit: '%', better: 'higher' },
-    { key: 'bodyAge', label: 'Edad Corporal', unit: 'años', better: 'lower' }
+    { key: 'weight', label: 'Peso Corporal', short: 'Peso', unit: 'kg', better: 'lower' },
+    { key: 'fat', label: 'Grasa Corporal', short: 'Grasa', unit: '%', better: 'lower' },
+    { key: 'muscle', label: 'Masa Muscular', short: 'Músculo', unit: 'kg', better: 'higher' },
+    { key: 'bmi', label: 'IMC', short: 'IMC', unit: '', better: 'lower' },
+    { key: 'leanMass', label: 'Masa Magra', short: 'Masa magra', unit: 'kg', better: 'higher' },
+    { key: 'visceral', label: 'Grasa Visceral', short: 'G. visceral', unit: '', better: 'lower' },
+    { key: 'water', label: 'Agua / Humedad', short: 'Agua', unit: '%', better: 'higher' },
+    { key: 'bodyAge', label: 'Edad Corporal', short: 'Edad corporal', unit: 'años', better: 'lower' }
   ];
 
+  const hasValue = v => v !== undefined && v !== null;
+
+  // Diferencia último vs base, con su clase de color (mejora / retroceso)
+  const deltaFor = row => {
+    const baseVal = base[row.key];
+    const latestVal = latestItem[row.key];
+    if (!hasValue(baseVal) || !hasValue(latestVal)) return null;
+    const diff = latestVal - baseVal;
+    if (diff === 0) return { text: '0.0', cls: 'neutral-stable' };
+    const isImprovement = (row.better === 'lower' && diff < 0) || (row.better === 'higher' && diff > 0);
+    return {
+      text: `${diff > 0 ? '+' : ''}${diff.toFixed(1)} ${row.unit}`.trim(),
+      cls: isImprovement ? 'positive-improvement' : 'negative-regression'
+    };
+  };
+
+  // Tabla completa (escritorio y PDF)
   let html = `
     <table class="comparison-table">
       <thead>
         <tr>
           <th>Variable InBody</th>
           <th>Base (${formatDateString(base.date)})</th>
-  `;
-
-  // Añadir cabeceras para las fechas comparadas
-  compareList.forEach(item => {
-    html += `<th>${formatDateString(item.date)}</th>`;
-  });
-
-  html += `
+          ${compareList.map(item => `<th>${formatDateString(item.date)}</th>`).join('')}
           <th>Evolución Global</th>
         </tr>
       </thead>
       <tbody>
   `;
 
-  // Construir cada fila de métrica
   rowSchema.forEach(row => {
-    const baseVal = base[row.key];
-    
+    const fmt = v => hasValue(v) ? `${v} ${row.unit}` : '-';
+    const delta = deltaFor(row);
     html += `
       <tr>
         <td class="metric-label-col">${row.label}</td>
-        <td style="font-weight:600;">${baseVal !== undefined && baseVal !== null ? `${baseVal} ${row.unit}` : '-'}</td>
-    `;
-
-    // Valores intermedios
-    compareList.forEach(item => {
-      const val = item[row.key];
-      html += `<td>${val !== undefined && val !== null ? `${val} ${row.unit}` : '-'}</td>`;
-    });
-
-    // Calcular cambio global (Base vs Último)
-    const latestItem = compareList.length > 0 ? compareList[compareList.length - 1] : base;
-    const latestVal = latestItem[row.key];
-    
-    let deltaHtml = '-';
-    if (baseVal !== undefined && baseVal !== null && latestVal !== undefined && latestVal !== null) {
-      const diff = latestVal - baseVal;
-      const formattedDiff = diff > 0 ? `+${diff.toFixed(1)}` : `${diff.toFixed(1)}`;
-      
-      if (diff === 0) {
-        deltaHtml = `<span class="delta-cell neutral-stable">0.0</span>`;
-      } else {
-        const isImprovement = (row.better === 'lower' && diff < 0) || (row.better === 'higher' && diff > 0);
-        const cellClass = isImprovement ? 'positive-improvement' : 'negative-regression';
-        deltaHtml = `<span class="delta-cell ${cellClass}">${formattedDiff} ${row.unit}</span>`;
-      }
-    }
-
-    html += `
-        <td style="background:rgba(15,23,42,0.02);">${deltaHtml}</td>
+        <td style="font-weight:600;">${fmt(base[row.key])}</td>
+        ${compareList.map(item => `<td>${fmt(item[row.key])}</td>`).join('')}
+        <td style="background:rgba(15,23,42,0.02);">${delta ? `<span class="delta-cell ${delta.cls}">${delta.text}</span>` : '-'}</td>
       </tr>
     `;
   });
@@ -1303,6 +1268,23 @@ function renderInBodyComparisonTable() {
       </tbody>
     </table>
   `;
+
+  // Tarjetas compactas (móvil): valor actual + cambio desde la base
+  html += `<div class="inbody-tiles">`;
+  rowSchema.forEach(row => {
+    const latestVal = latestItem[row.key];
+    if (!hasValue(latestVal)) return;
+    const delta = deltaFor(row);
+    html += `
+      <div class="inbody-tile">
+        <span class="inbody-tile-label">${row.short}</span>
+        <span class="inbody-tile-value">${latestVal}<small>${row.unit}</small></span>
+        ${delta && sorted.length > 1 ? `<span class="delta-cell ${delta.cls}">${delta.text}</span>` : '<span class="inbody-tile-base">Medición base</span>'}
+      </div>
+    `;
+  });
+  html += `</div>
+    <div class="inbody-tiles-foot">Base: ${formatDateString(base.date)} · Último: ${formatDateString(latestItem.date)} · ${sorted.length} registros</div>`;
 
   if (container1) container1.innerHTML = html;
   if (container2) container2.innerHTML = html;
@@ -1359,6 +1341,14 @@ function getExerciseDisplayName(exerciseId) {
   return `${target.name} · ${dayName}`;
 }
 
+const MUSCLE_LABELS = {
+  legs: 'Piernas', back: 'Espalda', chest: 'Pecho', biceps: 'Bíceps',
+  triceps: 'Tríceps', shoulders: 'Hombros', cardio: 'Cardio'
+};
+
+// Día de rutina seleccionado en "Progreso de fuerza" (se mantiene entre renders)
+let activeStrengthDayId = null;
+
 function renderReportsPanel() {
   const volumeCanvas = document.getElementById('volume-chart');
   const strengthCanvas = document.getElementById('strength-chart');
@@ -1366,7 +1356,11 @@ function renderReportsPanel() {
 
   if (!volumeCanvas || !strengthCanvas || !exerciseSelect) return;
 
-  // 1. Cargar selector de ejercicios basados en las rutinas actuales
+  // 1. Resumen y progreso por ejercicio (fija también el día activo)
+  renderReportKpis();
+  renderStrengthProgress();
+
+  // 2. Selector de ejercicios del gráfico de fuerza
   exerciseSelect.innerHTML = '';
   const addedExercises = {};
 
@@ -1382,12 +1376,18 @@ function renderReportsPanel() {
     });
   });
 
-  // 2. Dibujar volumen de trabajo
+  // Mostrar de inicio el primer ejercicio con registros del día activo
+  const activeRoutine = state.routines.find(r => r.id === activeStrengthDayId);
+  const firstWithData = activeRoutine && activeRoutine.exercises.find(ex =>
+    ex.muscle !== 'cardio' && state.history.some(log => log.exerciseId === ex.id));
+  if (firstWithData) exerciseSelect.value = firstWithData.id;
+
+  // 3. Dibujar volumen de trabajo
   if (typeof renderVolumeChart === 'function') {
     renderVolumeChart(volumeCanvas, state.history);
   }
 
-  // 3. Dibujar fuerza al cambiar de ejercicio
+  // 4. Dibujar fuerza al cambiar de ejercicio
   const updateStrength = () => {
     const exerciseId = exerciseSelect.value;
     if (!exerciseId) return;
@@ -1403,106 +1403,219 @@ function renderReportsPanel() {
   exerciseSelect.onchange = updateStrength;
   updateStrength(); // Carga inicial de fuerza
 
-  // 4. Generar el Cuadro General de Fuerza y Progresos del Gimnasio
-  renderGeneralGymReport();
+  // 5. Composición corporal
+  renderInBodyComparisonTable();
 }
 
-function renderGeneralGymReport() {
-  const tbody = document.getElementById('general-gym-report-tbody');
-  if (!tbody) return;
+// Calcula la progresión de un ejercicio a partir del historial
+function getExerciseProgress(ex) {
+  const startWeight = calculateDynamicStartWeight(ex.startWeight, ex.muscle);
+  const exerciseLogs = state.history.filter(log => log.exerciseId === ex.id);
 
-  tbody.innerHTML = '';
-
-  // Obtener todos los ejercicios estructurados de las rutinas actuales del usuario
-  const allExercises = [];
-  const seenIds = new Set();
-  state.routines.forEach(routine => {
-    routine.exercises.forEach(ex => {
-      if (!seenIds.has(ex.id)) {
-        seenIds.add(ex.id);
-        allExercises.push(ex);
-      }
-    });
+  // Peso máximo por día de entrenamiento (para la minigráfica)
+  const maxPerDay = {};
+  exerciseLogs.forEach(log => {
+    const day = (log.date || '').slice(0, 10);
+    const weight = parseFloat(log.weight) || 0;
+    if (!(day in maxPerDay) || weight > maxPerDay[day]) maxPerDay[day] = weight;
   });
+  const days = Object.keys(maxPerDay).sort();
+  const series = days.map(d => maxPerDay[d]);
+  const maxWeight = series.length > 0 ? Math.max(...series) : 0;
 
-  if (allExercises.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">No hay ejercicios en tus rutinas.</td></tr>`;
+  let lastDifficulty = null;
+  let lastWeightUsed = 0;
+  if (exerciseLogs.length > 0) {
+    const sortedLogs = [...exerciseLogs].sort((a,b) => new Date(b.date) - new Date(a.date));
+    lastDifficulty = sortedLogs[0].difficulty || 'adecuado';
+    lastWeightUsed = sortedLogs[0].weight || 0;
+  }
+
+  // Siguiente sugerencia (algoritmo entrenador virtual)
+  let recommendedWeight = startWeight;
+  if (lastWeightUsed > 0) {
+    if (lastDifficulty === 'facil') {
+      recommendedWeight = lastWeightUsed + (ex.muscle === 'biceps' || ex.muscle === 'shoulders' ? 1 : 2.5);
+    } else if (lastDifficulty === 'duro') {
+      recommendedWeight = Math.max(0, lastWeightUsed - 2.5);
+    } else {
+      recommendedWeight = lastWeightUsed;
+    }
+  }
+
+  return {
+    startWeight,
+    series,
+    sessions: days.length,
+    maxWeight,
+    progress: maxWeight > 0 ? maxWeight - startWeight : null,
+    lastDifficulty,
+    recommendedWeight
+  };
+}
+
+// Minigráfica SVG con la evolución del peso máximo por sesión
+function sparklineSvg(values) {
+  if (values.length < 2) return '';
+  const w = 64, h = 24, pad = 3;
+  const min = Math.min(...values);
+  const range = Math.max(...values) - min;
+  const points = values.map((v, i) => [
+    pad + i * (w - 2 * pad) / (values.length - 1),
+    range === 0 ? h / 2 : h - pad - (v - min) / range * (h - 2 * pad)
+  ]);
+  const [lastX, lastY] = points[points.length - 1];
+  return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
+    <polyline points="${points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2.6" fill="currentColor"/>
+  </svg>`;
+}
+
+function renderReportKpis() {
+  const container = document.getElementById('report-kpis');
+  if (!container) return;
+
+  const trainingDays = [...new Set(state.history.map(log => (log.date || '').slice(0, 10)).filter(Boolean))];
+  const monthPrefix = getLocalDateString().slice(0, 7);
+  const thisMonth = trainingDays.filter(d => d.startsWith(monthPrefix)).length;
+
+  const tonnage = state.history.reduce((sum, log) => sum + (parseInt(log.reps) || 0) * (parseFloat(log.weight) || 0), 0);
+  const tonnageText = tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)} t` : `${Math.round(tonnage)} kg`;
+
+  // Ejercicios de fuerza con registros y cuántos superan su carga inicial
+  let withData = 0;
+  let improved = 0;
+  const seen = new Set();
+  state.routines.forEach(routine => routine.exercises.forEach(ex => {
+    if (seen.has(ex.id) || ex.muscle === 'cardio') return;
+    seen.add(ex.id);
+    const p = getExerciseProgress(ex);
+    if (p.sessions > 0) {
+      withData++;
+      if (p.progress > 0) improved++;
+    }
+  }));
+
+  const weights = [...state.weightHistory].sort((a,b) => new Date(a.date) - new Date(b.date));
+  let weightValue = '—';
+  let weightSub = 'Sin registros';
+  if (weights.length > 0) {
+    const latest = weights[weights.length - 1].weight;
+    const diff = latest - weights[0].weight;
+    weightValue = `${latest} kg`;
+    weightSub = weights.length > 1
+      ? `${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg desde el inicio`
+      : 'Medición base';
+  }
+
+  const tiles = [
+    { label: 'Sesiones', value: calculateTotalWorkouts(), sub: `${thisMonth} días este mes` },
+    { label: 'Tonelaje total', value: tonnageText, sub: 'reps × peso acumulado' },
+    { label: 'Mejoras', value: `${improved}/${withData}`, sub: 'ejercicios con más carga' },
+    { label: 'Peso corporal', value: weightValue, sub: weightSub }
+  ];
+
+  container.innerHTML = tiles.map(t => `
+    <div class="card kpi-tile">
+      <span class="kpi-label">${t.label}</span>
+      <span class="kpi-value">${t.value}</span>
+      <span class="kpi-sub">${t.sub}</span>
+    </div>
+  `).join('');
+}
+
+function renderStrengthProgress() {
+  const tabsEl = document.getElementById('strength-day-tabs');
+  const listEl = document.getElementById('strength-progress-list');
+  if (!tabsEl || !listEl) return;
+
+  const routines = state.routines;
+  if (routines.length === 0) {
+    tabsEl.innerHTML = '';
+    listEl.innerHTML = `<div class="strength-empty">No hay ejercicios en tus rutinas.</div>`;
     return;
   }
 
-  allExercises.forEach(ex => {
-    // 1. Carga inicial
-    const startWeight = calculateDynamicStartWeight(ex.startWeight, ex.muscle);
+  // Día activo por defecto: el del último entrenamiento registrado
+  if (!routines.some(r => r.id === activeStrengthDayId)) {
+    const lastLog = [...state.history].sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+    activeStrengthDayId = lastLog && routines.some(r => r.id === lastLog.routineId)
+      ? lastLog.routineId
+      : routines[0].id;
+  }
 
-    // 2. Encontrar peso máximo levantado en el historial
-    const exerciseLogs = state.history.filter(log => log.exerciseId === ex.id);
-    let maxWeight = 0;
-    let lastDifficulty = '-';
-    let lastWeightUsed = 0;
+  tabsEl.innerHTML = routines.map(r => {
+    const active = r.id === activeStrengthDayId;
+    return `<button type="button" class="day-tab${active ? ' active' : ''}" data-day="${r.id}" role="tab" aria-selected="${active}">${r.name.split(':')[0]}</button>`;
+  }).join('');
 
-    if (exerciseLogs.length > 0) {
-      maxWeight = Math.max(...exerciseLogs.map(l => l.weight || 0));
-      
-      // Ordenar por fecha desc para ver el último log
-      const sortedLogs = [...exerciseLogs].sort((a,b) => new Date(b.date) - new Date(a.date));
-      lastDifficulty = sortedLogs[0].difficulty || 'adecuado';
-      lastWeightUsed = sortedLogs[0].weight || 0;
-    }
+  const difficultyLabels = { facil: '😊 Fácil', adecuado: '⚡ Bien', duro: '🥵 Duro' };
 
-    // 3. Progreso neto
-    const progress = maxWeight > 0 ? maxWeight - startWeight : 0;
-    let progressText = '-';
-    let progressClass = '';
-    
-    if (maxWeight > 0) {
-      if (progress > 0) {
-        progressText = `+${progress.toFixed(1)} kg`;
-        progressClass = 'positive-improvement';
-      } else if (progress < 0) {
-        progressText = `${progress.toFixed(1)} kg`;
-        progressClass = 'negative-regression';
-      } else {
-        progressText = '0.0 kg';
-        progressClass = 'neutral-stable';
+  listEl.innerHTML = routines.map(routine => {
+    const rows = routine.exercises.map(ex => {
+      const p = getExerciseProgress(ex);
+      const muscleBadge = `<span class="muscle-badge muscle-badge-${ex.muscle}">${MUSCLE_LABELS[ex.muscle] || ex.muscle}</span>`;
+      const effort = p.lastDifficulty
+        ? `<span class="difficulty-badge ${p.lastDifficulty}">${difficultyLabels[p.lastDifficulty] || p.lastDifficulty}</span>`
+        : '';
+
+      // El cardio no tiene progresión de carga: solo se cuentan sesiones
+      if (ex.muscle === 'cardio') {
+        return `
+          <div class="strength-row is-cardio">
+            <span class="strength-name">${ex.name}</span>
+            <span class="strength-delta neutral-stable">${p.sessions} ${p.sessions === 1 ? 'sesión' : 'sesiones'}</span>
+            <span class="strength-meta">${muscleBadge}</span>
+          </div>`;
       }
-    }
 
-    // 4. Siguiente sugerencia (algoritmo entrenador virtual)
-    let recommendedWeight = startWeight;
-    if (lastWeightUsed > 0) {
-      if (lastDifficulty === 'facil') {
-        recommendedWeight = lastWeightUsed + (ex.muscle === 'biceps' || ex.muscle === 'shoulders' ? 1 : 2.5);
-      } else if (lastDifficulty === 'duro') {
-        recommendedWeight = Math.max(0, lastWeightUsed - 2.5);
-      } else {
-        recommendedWeight = lastWeightUsed;
+      let deltaHtml = '<span class="strength-delta neutral-stable">—</span>';
+      if (p.progress !== null) {
+        const cls = p.progress > 0 ? 'positive-improvement' : p.progress < 0 ? 'negative-regression' : 'neutral-stable';
+        deltaHtml = `<span class="strength-delta delta-cell ${cls}">${p.progress > 0 ? '+' : ''}${p.progress.toFixed(1)} kg</span>`;
       }
-    }
 
-    // Formatear visualmente
-    const tr = document.createElement('tr');
-    
-    const difficultyLabels = {
-      'facil': '😊 Fácil',
-      'adecuado': '⚡ Adecuado',
-      'duro': '🥵 Duro',
-      '-': '-'
-    };
-    const difficultyBadgeText = difficultyLabels[lastDifficulty] || lastDifficulty;
+      const loads = p.sessions > 0
+        ? `${p.startWeight} → <strong>${p.maxWeight} kg</strong>`
+        : `Sin registros · empieza con ${p.startWeight} kg`;
 
-    tr.innerHTML = `
-      <td style="font-weight:600;color:var(--text-main);">${getExerciseDisplayName(ex.id)}</td>
-      <td class="muscle-badge-col"><span class="muscle-badge-${ex.muscle}">${ex.muscle}</span></td>
-      <td style="font-weight:600;color:var(--text-muted);">${startWeight} kg</td>
-      <td style="font-weight:600;color:var(--text-main);">${maxWeight > 0 ? `${maxWeight} kg` : '-'}</td>
-      <td><span class="delta-cell ${progressClass}">${progressText}</span></td>
-      <td>
-        ${lastDifficulty !== '-' ? `<span class="difficulty-badge ${lastDifficulty}">${difficultyBadgeText}</span>` : '-'}
-      </td>
-      <td style="font-weight:700;color:var(--primary);">${recommendedWeight} kg</td>
-    `;
-    tbody.appendChild(tr);
-  });
+      return `
+        <button type="button" class="strength-row${p.sessions === 0 ? ' no-data' : ''}" data-exercise="${ex.id}">
+          <span class="strength-name">${ex.name}</span>
+          <span class="strength-spark">${sparklineSvg(p.series)}</span>
+          ${deltaHtml}
+          <span class="strength-meta">
+            ${muscleBadge}
+            <span>${loads}</span>
+            <span class="strength-next">Próx. <strong>${p.recommendedWeight} kg</strong></span>
+            ${effort}
+          </span>
+        </button>`;
+    }).join('');
+
+    return `
+      <div class="strength-group${routine.id === activeStrengthDayId ? ' active' : ''}" data-day="${routine.id}">
+        <h4 class="strength-group-title">${routine.name}</h4>
+        ${rows}
+      </div>`;
+  }).join('');
+
+  tabsEl.onclick = (e) => {
+    const tab = e.target.closest('.day-tab');
+    if (!tab) return;
+    activeStrengthDayId = tab.dataset.day;
+    renderStrengthProgress();
+  };
+
+  // Tocar un ejercicio lo muestra en el gráfico de fuerza
+  listEl.onclick = (e) => {
+    const row = e.target.closest('.strength-row[data-exercise]');
+    const select = document.getElementById('report-exercise-select');
+    if (!row || !select) return;
+    select.value = row.dataset.exercise;
+    if (typeof select.onchange === 'function') select.onchange();
+    document.getElementById('strength-chart-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 }
 
 // Exportación del Historial Completo a CSV
@@ -1538,174 +1651,6 @@ function exportDataToCSV() {
   
   link.click();
   document.body.removeChild(link);
-}
-
-// ==========================================
-// 7. GESTOR Y EDITOR DE RUTINAS (CRUD CADA 4 SEMANAS)
-// ==========================================
-
-let activeEditorRoutineId = 'dia1';
-
-function renderEditorPanel() {
-  const routineSelector = document.getElementById('editor-routine-selector');
-  const tableBody = document.getElementById('editor-table-body');
-  
-  if (!routineSelector || !tableBody) return;
-
-  // Cargar selector de rutinas
-  routineSelector.innerHTML = '';
-  state.routines.forEach(r => {
-    const btn = document.createElement('button');
-    btn.className = `btn ${r.id === activeEditorRoutineId ? 'btn-primary' : ''}`;
-    btn.textContent = r.name.split(':')[0]; // "Día 1"
-    btn.onclick = () => {
-      activeEditorRoutineId = r.id;
-      renderEditorPanel();
-    };
-    routineSelector.appendChild(btn);
-  });
-
-  // Cargar ejercicios de la rutina activa en la tabla
-  tableBody.innerHTML = '';
-  const routine = state.routines.find(r => r.id === activeEditorRoutineId);
-  if (!routine) return;
-
-  routine.exercises.forEach((ex, index) => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td style="font-weight:600;">${ex.name}</td>
-      <td>${ex.sets}</td>
-      <td>${ex.reps}</td>
-      <td>${ex.rest}s</td>
-      <td>${ex.startWeight} kg</td>
-      <td>
-        <div class="action-buttons">
-          <button class="btn-icon" title="Subir" onclick="moveExercise(${index}, -1)">▲</button>
-          <button class="btn-icon" title="Bajar" onclick="moveExercise(${index}, 1)">▼</button>
-          <button class="btn-icon danger" title="Eliminar" onclick="deleteExercise(${index})">
-            <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          </button>
-        </div>
-      </td>
-    `;
-    tableBody.appendChild(row);
-  });
-}
-
-function moveExercise(index, direction) {
-  const routine = state.routines.find(r => r.id === activeEditorRoutineId);
-  const targetIndex = index + direction;
-  
-  if (targetIndex < 0 || targetIndex >= routine.exercises.length) return;
-
-  // Intercambiar
-  const temp = routine.exercises[index];
-  routine.exercises[index] = routine.exercises[targetIndex];
-  routine.exercises[targetIndex] = temp;
-
-  saveStateToStorage('routines');
-  renderEditorPanel();
-}
-
-function deleteExercise(index) {
-  const routine = state.routines.find(r => r.id === activeEditorRoutineId);
-  if (confirm(`¿Estás seguro de eliminar "${routine.exercises[index].name}"?`)) {
-    routine.exercises.splice(index, 1);
-    saveStateToStorage('routines');
-    renderEditorPanel();
-  }
-}
-
-// Abrir Modal de Añadir Ejercicio
-function openAddExerciseModal() {
-  const modal = document.getElementById('add-exercise-modal');
-  modal.classList.add('active');
-
-  // Llenar selector de tipos de músculos
-  const select = document.getElementById('modal-exercise-select');
-  select.innerHTML = '<option value="custom">-- Ejercicio Personalizado --</option>';
-
-  // Agregar los ejercicios predefinidos del sistema que no estén ya en la rutina
-  const routine = state.routines.find(r => r.id === activeEditorRoutineId);
-  const currentIds = routine.exercises.map(ex => ex.id);
-
-  // Lista de todos los ejercicios del data.js que se pueden clonar
-  const allInitialExercises = INITIAL_ROUTINES.reduce((acc, r) => [...acc, ...r.exercises], []);
-  
-  allInitialExercises.forEach(ex => {
-    if (!currentIds.includes(ex.id)) {
-      const option = document.createElement('option');
-      option.value = ex.id;
-      option.textContent = `${ex.name} (${ex.muscle})`;
-      select.appendChild(option);
-    }
-  });
-
-  // Alternar inputs al elegir personalizado o predefinido
-  select.onchange = () => {
-    const customFields = document.getElementById('custom-exercise-fields');
-    if (select.value === 'custom') {
-      customFields.style.display = 'block';
-    } else {
-      customFields.style.display = 'none';
-    }
-  };
-}
-
-function saveNewExercise() {
-  const select = document.getElementById('modal-exercise-select');
-  const routine = state.routines.find(r => r.id === activeEditorRoutineId);
-  
-  let newExercise = null;
-
-  if (select.value === 'custom') {
-    const name = document.getElementById('input-ex-name').value;
-    const sets = parseInt(document.getElementById('input-ex-sets').value) || 4;
-    const reps = document.getElementById('input-ex-reps').value || "10";
-    const rest = parseInt(document.getElementById('input-ex-rest').value) || 60;
-    const weight = parseFloat(document.getElementById('input-ex-weight').value) || 10;
-    const muscle = document.getElementById('input-ex-muscle').value;
-    const video = document.getElementById('input-ex-video').value || "";
-
-    if (!name) {
-      alert("Por favor introduce un nombre para el ejercicio.");
-      return;
-    }
-
-    newExercise = {
-      id: `custom_${Date.now()}`,
-      name,
-      sets,
-      reps,
-      rest,
-      muscle,
-      video,
-      startWeight: weight,
-      notes: "Ejercicio personalizado.",
-      patologyNotes: "Entrenar con cuidado y técnica controlada."
-    };
-  } else {
-    // Clonar predefinido de la base de datos INITIAL_ROUTINES
-    const allInitialExercises = INITIAL_ROUTINES.reduce((acc, r) => [...acc, ...r.exercises], []);
-    const template = allInitialExercises.find(ex => ex.id === select.value);
-    
-    if (template) {
-      newExercise = JSON.parse(JSON.stringify(template));
-      // Sobrescribir sets/reps si se desea
-      newExercise.sets = parseInt(document.getElementById('input-ex-sets').value) || template.sets;
-      newExercise.reps = document.getElementById('input-ex-reps').value || template.reps;
-    }
-  }
-
-  if (newExercise) {
-    routine.exercises.push(newExercise);
-    saveStateToStorage('routines');
-    document.getElementById('add-exercise-modal').classList.remove('active');
-    
-    // Reset campos
-    document.getElementById('add-ex-form').reset();
-    renderEditorPanel();
-  }
 }
 
 // ==========================================
@@ -2090,46 +2035,71 @@ let currentYear = currentDate.getFullYear();
 function renderCalendar() {
   const monthYearEl = document.getElementById('calendar-month-year');
   const daysEl = document.getElementById('calendar-days');
+  const summaryEl = document.getElementById('calendar-summary');
   if (!monthYearEl || !daysEl) return;
 
   const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   monthYearEl.textContent = months[currentMonth] + ' ' + currentYear;
-  
-  daysEl.innerHTML = '';
-  
+
+  const monthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  const todayStr = getLocalDateString();
+  const scheduleDays = (state.settings && state.settings.scheduleDays || []).map(Number);
+
+  // Letra de rutina ("A", "B"...) a partir del nombre "Día A: ..."
+  const routineLetter = {};
+  state.routines.forEach(r => {
+    routineLetter[r.id] = r.name.split(':')[0].replace(/^D[ií]a\s*/i, '').trim();
+  });
+
+  // Rutinas hechas cada día del mes visible
+  const workoutsByDay = {};
+  state.history.forEach(h => {
+    const day = (h.date || '').slice(0, 10);
+    if (!day.startsWith(monthPrefix)) return;
+    if (!workoutsByDay[day]) workoutsByDay[day] = new Set();
+    if (h.routineId) workoutsByDay[day].add(h.routineId);
+  });
+
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  
-  let startDay = firstDay === 0 ? 6 : firstDay - 1;
-  
-  for (let i = 0; i < startDay; i++) {
-    const emptyDiv = document.createElement('div');
-    emptyDiv.className = 'cal-day empty';
-    daysEl.appendChild(emptyDiv);
-  }
-  
+  const startDay = firstDay === 0 ? 6 : firstDay - 1;
+
+  let html = '<div class="cal-day empty"></div>'.repeat(startDay);
+
   for (let day = 1; day <= daysInMonth; day++) {
-    const dayDiv = document.createElement('div');
-    dayDiv.className = 'cal-day';
-    dayDiv.textContent = day;
-    
-    const fMonth = String(currentMonth + 1).padStart(2, '0');
-    const fDay = String(day).padStart(2, '0');
-    const dateStr = currentYear + '-' + fMonth + '-' + fDay;
-    
-    const workedOut = state.history.some(h => h.date && h.date.startsWith(dateStr));
-    if (workedOut) {
-      dayDiv.classList.add('workout-day');
-      dayDiv.style.backgroundColor = 'var(--primary)';
-      dayDiv.style.color = '#000';
-      dayDiv.style.fontWeight = 'bold';
+    const dateStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
+    const routinesDone = workoutsByDay[dateStr];
+    const classes = ['cal-day'];
+    let tag = '';
+
+    if (routinesDone) {
+      classes.push('workout-day');
+      tag = [...routinesDone].map(id => routineLetter[id] || '').join('');
+    } else if (dateStr > todayStr && scheduleDays.includes(new Date(currentYear, currentMonth, day).getDay())) {
+      classes.push('planned');
     }
-    
-    const today = new Date();
-    if (day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
-      dayDiv.style.border = '2px solid var(--accent)';
-    }
-    
-    daysEl.appendChild(dayDiv);
+    if (dateStr === todayStr) classes.push('today');
+
+    html += `<div class="${classes.join(' ')}"><span class="cal-num">${day}</span>${tag ? `<span class="cal-tag">${tag}</span>` : ''}</div>`;
+  }
+
+  daysEl.innerHTML = html;
+
+  // Resumen del mes: días entrenados y reparto por rutina
+  if (summaryEl) {
+    const trainedDays = Object.keys(workoutsByDay).length;
+    const perRoutine = {};
+    Object.values(workoutsByDay).forEach(set => set.forEach(id => {
+      perRoutine[id] = (perRoutine[id] || 0) + 1;
+    }));
+    const routineChips = state.routines
+      .filter(r => perRoutine[r.id])
+      .map(r => `<span class="cal-chip">Día ${routineLetter[r.id]} <strong>×${perRoutine[r.id]}</strong></span>`)
+      .join('');
+
+    summaryEl.innerHTML = `
+      <div class="cal-stat"><strong>${trainedDays}</strong> ${trainedDays === 1 ? 'día entrenado' : 'días entrenados'} en ${months[currentMonth].toLowerCase()}</div>
+      ${routineChips ? `<div class="cal-chips">${routineChips}</div>` : ''}
+    `;
   }
 }

@@ -52,17 +52,12 @@
         </li>
         <li class="nav-item">
           <button data-tab="metrics">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg> Métricas Peso
+            <svg viewBox="0 0 24 24"><path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/></svg> Métricas Peso
           </button>
         </li>
         <li class="nav-item">
           <button data-tab="reports">
             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg> Informes
-          </button>
-        </li>
-        <li class="nav-item">
-          <button data-tab="editor">
-            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Editar Rutinas
           </button>
         </li>
         <li class="nav-item">
@@ -95,13 +90,10 @@
         <svg viewBox="0 0 24 24"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14 4.14 5.57 2 7.71 3.43 9.14 2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22 14.86 20.57 16.29 22 18.43 19.86 19.86 21.29 21.29 19.86 19.86 18.43 22 16.29z"/></svg> Entrenar
       </button>
       <button class="mobile-nav-item" data-tab="metrics">
-        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg> Peso
+        <svg viewBox="0 0 24 24"><path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/></svg> Peso
       </button>
       <button class="mobile-nav-item" data-tab="reports">
         <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg> Informes
-      </button>
-      <button class="mobile-nav-item" data-tab="editor">
-        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Editor
       </button>
       <button class="mobile-nav-item" data-tab="calendar">
         <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7v-5z"/></svg> Calendario
@@ -122,7 +114,7 @@
 
       <!-- BARRA DE ALERTA DE NOTIFICACIONES DESACTIVADAS -->
       <div id="alert-permission-bar" class="alert-bar" style="display: none;">
-        <span class="alert-bar-text">🔔 Las alertas están desactivadas. <strong>Activa las notificaciones</strong> en configuración para recibir avisos de entreno.</span>
+        <span class="alert-bar-text">🔔 Alertas desactivadas. <strong>Actívalas</strong> para recibir avisos de entreno.</span>
         <button class="btn btn-accent btn-sm" onclick="requestAndTestNotifications()">Activar</button>
       </div>
 
@@ -331,8 +323,10 @@
             <div class="ocr-drop-zone" id="ocr-drop-zone">
               <input type="file" id="ocr-file-input" accept="image/*" style="display: none;">
               <svg viewBox="0 0 24 24" class="ocr-upload-icon"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-              <div class="ocr-text-main">📸 Escanear Captura InBody</div>
-              <div class="ocr-text-sub">Arrastra tu imagen aquí o haz clic</div>
+              <div class="ocr-text">
+                <div class="ocr-text-main">Escanear captura InBody</div>
+                <div class="ocr-text-sub">Rellena los campos automáticamente desde una foto</div>
+              </div>
             </div>
 
             <!-- Indicador de Progreso del Escaneo (Oculto por defecto) -->
@@ -406,7 +400,7 @@
                 <option value="bodyAge">Edad Corporal (años)</option>
               </select>
             </div>
-            <div style="flex-grow: 1; position: relative; height: 350px;">
+            <div class="chart-canvas-box chart-canvas-box-lg">
               <canvas id="weight-chart"></canvas>
             </div>
           </div>
@@ -414,8 +408,8 @@
           <!-- Tabla comparativa InBody (Últimos registros y balance global) -->
           <div class="card metrics-comparison-card">
             <h3 class="metrics-comparison-title">
-              <span>📈 Tabla Comparativa de Composición Corporal</span>
-              <span class="metrics-comparison-subtitle">Últimas 5 fechas frente a la medición base</span>
+              <span>📈 Evolución de tu composición</span>
+              <span class="metrics-comparison-subtitle">Último registro frente a la medición base</span>
             </h3>
             <div class="comparison-table-wrapper" id="metrics-comparison-table-container">
               <!-- Generado dinámicamente por app.js -->
@@ -443,37 +437,34 @@
           </div>
         </div>
 
-        <!-- Cuadro General de Fuerza y Progresos del Gimnasio -->
+        <!-- Resumen rápido: sesiones, tonelaje, ejercicios mejorados y peso -->
+        <div class="report-kpis" id="report-kpis">
+          <!-- Generado dinámicamente por app.js -->
+        </div>
+
+        <!-- Progreso de fuerza por ejercicio, agrupado por día de rutina -->
         <div class="card reports-full-width-card">
           <div class="chart-header">
-            <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--primary);">Cuadro General de Fuerza y Cargas</h3>
-            <span style="font-size: 0.85rem; color: var(--text-muted);">Progreso consolidado de todos los ejercicios de tu rutina activa</span>
+            <div>
+              <h3 class="report-card-title">Progreso de fuerza</h3>
+              <span class="report-card-sub">Toca un ejercicio para ver su gráfico</span>
+            </div>
           </div>
-          <div class="general-report-table-wrapper">
-            <table class="general-report-table">
-              <thead>
-                <tr>
-                  <th>Ejercicio</th>
-                  <th>Grupo Muscular</th>
-                  <th>Carga Inicial</th>
-                  <th>Carga Máxima Lograda</th>
-                  <th>Progreso Neto</th>
-                  <th>Último Esfuerzo</th>
-                  <th>Siguiente Sugerencia</th>
-                </tr>
-              </thead>
-              <tbody id="general-gym-report-tbody">
-                <!-- Generado dinámicamente por app.js -->
-              </tbody>
-            </table>
+          <div class="day-tabs" id="strength-day-tabs" role="tablist">
+            <!-- Generado dinámicamente por app.js -->
+          </div>
+          <div id="strength-progress-list">
+            <!-- Generado dinámicamente por app.js -->
           </div>
         </div>
 
-        <!-- Tabla comparativa InBody en el reporte unificado (visible al imprimir o consultar informes) -->
-        <div class="card" style="margin-bottom: 1.5rem; page-break-inside: avoid;">
+        <!-- Composición corporal (también sale en el PDF) -->
+        <div class="card reports-full-width-card">
           <div class="chart-header">
-            <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--accent);">Evolución de Composición Corporal</h3>
-            <span style="font-size: 0.85rem; color: var(--text-muted);">Historial de peso y variaciones InBody</span>
+            <div>
+              <h3 class="report-card-title">Composición corporal</h3>
+              <span class="report-card-sub">Último registro frente a la medición base</span>
+            </div>
           </div>
           <div class="comparison-table-wrapper" id="reports-inbody-comparison-container">
             <!-- Rellenado síncronamente por js/app.js -->
@@ -484,14 +475,14 @@
           <!-- Gráficos de Tonelaje y Fuerza -->
           <div class="charts-container">
             <!-- Gráfico de Fuerza por Ejercicio -->
-            <div class="card chart-card">
+            <div class="card chart-card" id="strength-chart-card">
               <div class="chart-header">
-                <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--primary);">Gráfico de Fuerza Individual</h3>
+                <h3 class="report-card-title">Gráfico de fuerza</h3>
                 <select id="report-exercise-select" class="chart-select">
                   <!-- Inyectado dinámicamente -->
                 </select>
               </div>
-              <div style="position: relative; height: 300px;">
+              <div class="chart-canvas-box">
                 <canvas id="strength-chart"></canvas>
               </div>
             </div>
@@ -499,10 +490,12 @@
             <!-- Gráfico de Volumen levantado semanal -->
             <div class="card chart-card">
               <div class="chart-header">
-                <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--secondary);">Tonelaje Semanal</h3>
-                <span style="font-size: 0.85rem; color: var(--text-muted);">Suma total de kg (Series x Reps x Peso)</span>
+                <div>
+                  <h3 class="report-card-title">Tonelaje semanal</h3>
+                  <span class="report-card-sub">Suma de kg levantados (reps × peso)</span>
+                </div>
               </div>
-              <div style="position: relative; height: 300px;">
+              <div class="chart-canvas-box">
                 <canvas id="volume-chart"></canvas>
               </div>
             </div>
@@ -533,46 +526,6 @@
       </section>
 
       <!-- ========================================== -->
-      <!-- VISTA: EDITOR DE RUTINAS (CRUD CADA 4 SEMANAS) -->
-      <!-- ========================================== -->
-      <section id="editor-view" class="page-view">
-        <div class="page-header">
-          <div>
-            <h2 class="page-title">Gestión de <span>Rutinas</span></h2>
-            <p class="page-subtitle">Añade o quita ejercicios de tus rutinas semanales según progreses.</p>
-          </div>
-          <button class="btn btn-primary" onclick="openAddExerciseModal()">
-            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Añadir Ejercicio
-          </button>
-        </div>
-
-        <div class="card">
-          <!-- Selector de día en el editor -->
-          <div class="editor-routine-selector" id="editor-routine-selector">
-            <!-- Botones inyectados por JS -->
-          </div>
-
-          <div class="editor-table-container">
-            <table class="editor-table">
-              <thead>
-                <tr>
-                  <th>Ejercicio</th>
-                  <th>Series</th>
-                  <th>Reps</th>
-                  <th>Descanso</th>
-                  <th>Peso Inicial</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="editor-table-body">
-                <!-- Cargado por JS -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================== -->
       <!-- VISTA: CALENDARIO -->
       <!-- ========================================== -->
       <section id="calendar-view" class="page-view">
@@ -593,6 +546,14 @@
           </div>
           <div class="calendar-days" id="calendar-days">
             <!-- Grid dinámico via JS -->
+          </div>
+          <div class="calendar-legend">
+            <span><i class="legend-dot trained"></i> Entrenado (letra = día de rutina)</span>
+            <span><i class="legend-dot planned"></i> Planificado</span>
+            <span><i class="legend-dot today"></i> Hoy</span>
+          </div>
+          <div class="calendar-summary" id="calendar-summary">
+            <!-- Resumen del mes via JS -->
           </div>
         </div>
       </section>
@@ -718,75 +679,6 @@
       <button class="btn-icon btn-skip-timer" onclick="skipRestTimer()">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
       </button>
-    </div>
-  </div>
-
-  <!-- MODAL DE AÑADIR EJERCICIO -->
-  <div class="modal-overlay" id="add-exercise-modal">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3 class="modal-title">Añadir Ejercicio</h3>
-        <button class="btn-icon" onclick="document.getElementById('add-exercise-modal').classList.remove('active')">✕</button>
-      </div>
-      <form id="add-ex-form" onsubmit="event.preventDefault(); saveNewExercise();">
-        <div class="form-group">
-          <label class="form-label" for="modal-exercise-select">Seleccionar Ejercicio Base</label>
-          <select id="modal-exercise-select" class="form-control-full" required>
-            <!-- Rellenado por JS -->
-          </select>
-        </div>
-
-        <!-- Campos para ejercicio personalizado -->
-        <div id="custom-exercise-fields" style="display: none; border-left: 2px solid var(--accent); padding-left: 1rem; margin-bottom: 1rem;">
-          <div class="form-group">
-            <label class="form-label" for="input-ex-name">Nombre del Ejercicio</label>
-            <input type="text" id="input-ex-name" class="form-control-full" placeholder="Ej: Curl Concentrado">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="input-ex-muscle">Grupo Muscular</label>
-            <select id="input-ex-muscle" class="form-control-full">
-              <option value="back">Espalda (back)</option>
-              <option value="biceps">Bíceps (biceps)</option>
-              <option value="triceps">Tríceps (triceps)</option>
-              <option value="chest">Pecho (chest)</option>
-              <option value="shoulders">Hombros (shoulders)</option>
-              <option value="legs">Piernas (legs)</option>
-              <option value="cardio">Cardio (cardio)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="input-ex-video">URL Video Tutorial (Youtube Embed Link)</label>
-            <input type="url" id="input-ex-video" class="form-control-full" placeholder="https://www.youtube.com/embed/...">
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-          <div class="form-group">
-            <label class="form-label" for="input-ex-sets">Series</label>
-            <input type="number" id="input-ex-sets" class="form-control-full" value="4" min="1">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="input-ex-reps">Repeticiones</label>
-            <input type="text" id="input-ex-reps" class="form-control-full" value="10">
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-          <div class="form-group">
-            <label class="form-label" for="input-ex-rest">Descanso (segundos)</label>
-            <input type="number" id="input-ex-rest" class="form-control-full" value="60" min="0">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="input-ex-weight">Peso Inicial (kg)</label>
-            <input type="number" id="input-ex-weight" class="form-control-full" value="10" min="0" step="0.5">
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-exercise-modal').classList.remove('active')">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Añadir</button>
-        </div>
-      </form>
     </div>
   </div>
 
