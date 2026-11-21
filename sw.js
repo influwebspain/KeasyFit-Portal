@@ -1,12 +1,14 @@
 // KeasyFit Service Worker — Cache Offline-First
-const CACHE_NAME = 'keasyfit-v3';
+const CACHE_NAME = 'keasyfit-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/css/style.css',
   '/js/data.js',
+  '/js/firebase-init.js',
   '/js/charts.js',
   '/js/app.js',
+  '/manifest.json',
   '/icon-512.png'
   // Google Fonts se cachean automáticamente en la primera visita vía CDN handler
 ];
