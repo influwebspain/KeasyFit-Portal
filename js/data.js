@@ -1,252 +1,263 @@
 // Datos Iniciales de la Rutina y Asistencias de KeasyFit
 
+// Versión del plan de entrenamiento. Al subirla, la app sustituye las rutinas
+// antiguas (local y Firebase) por las de este archivo.
+const ROUTINES_VERSION = 2;
+
+// PLAN DE RETORNO AL ENTRENAMIENTO — Joel Cabado (Personal Trainer)
+// 3 días/semana, cuerpo completo, máquinas/poleas/cardio.
+// Semanas 1-2: 2 series, RPE 5-6. Semanas 3-4: añadir 1 serie si se recupera bien.
+// Respetar siempre las indicaciones del fisioterapeuta y del equipo médico.
 const INITIAL_ROUTINES = [
   {
     id: "dia1",
-    name: "Día 1: Espalda y Bíceps",
-    muscles: "Espalda, Bíceps, Cuádriceps y Cardio",
+    name: "Día A: Cuerpo Completo",
+    muscles: "Máquinas, poleas y cardio · Retorno progresivo",
     exercises: [
       {
-        id: "jalon_nuca",
-        name: "Jalón a la nuca",
-        sets: 4,
-        reps: "15",
-        rest: 60, // en segundos
-        muscle: "back",
-        video: "https://www.youtube.com/embed/l3S64-3x00Y",
-        startWeight: 15, // peso inicial recomendado en kg
-        notes: "Asegúrate de no forzar el cuello hacia adelante. Si sientes molestias en los hombros, realiza el jalón por delante al pecho como alternativa más segura.",
-        patologyNotes: "Protección articular: No bajes la barra bruscamente. Controla la subida para evitar tirones en los hombros."
-      },
-      {
-        id: "biceps_polea",
-        name: "Bíceps en polea",
-        sets: 4,
-        reps: "12",
-        rest: 60,
-        muscle: "biceps",
-        video: "https://www.youtube.com/embed/0T26Z6n5B1A",
-        startWeight: 5,
-        notes: "Mantén los codos pegados a los costados y el abdomen firme para no balancear el cuerpo.",
-        patologyNotes: "Estabilidad: Con un peso corporal inicial alto, la estabilidad lumbar es clave. Aprieta glúteos y core."
-      },
-      {
-        id: "curl_martillo",
-        name: "Curl de Bíceps Martillo con Mancuerna",
-        sets: 4,
-        reps: "10",
-        rest: 60,
-        muscle: "biceps",
-        video: "https://www.youtube.com/embed/Pj13iFjM38s",
-        startWeight: 4, // 4kg por mancuerna
-        notes: "Palmas mirándose entre sí. Haz el movimiento controlado sin prisa.",
-        patologyNotes: "Postura: Mantén las rodillas ligeramente flexionadas para proteger la zona lumbar durante el levantamiento."
-      },
-      {
-        id: "remo_polea",
-        name: "Remo en polea baja",
-        sets: 4,
-        reps: "10",
-        rest: 60,
-        muscle: "back",
-        video: "https://www.youtube.com/embed/mKkU95C2gO0",
-        startWeight: 15,
-        notes: "Lleva el agarre hacia tu abdomen bajo, retrayendo las escápulas (junta los hombros atrás).",
-        patologyNotes: "Espalda sana: Evita inclinarte demasiado hacia adelante o atrás. Mantén la columna neutra."
-      },
-      {
-        id: "cuadriceps_maquina",
-        name: "Cuádriceps (extensiones en máquina)",
-        sets: 4,
-        reps: "10",
-        rest: 60,
+        id: "prensa_piernas",
+        name: "Prensa de piernas",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
         muscle: "legs",
-        video: "https://www.youtube.com/embed/6iO1XyXh2Qo",
-        startWeight: 10,
-        notes: "Ajusta la máquina para que tu rodilla coincida con el eje de rotación. Sube controlado.",
-        patologyNotes: "Rodillas seguras: No bloquees las rodillas arriba de forma brusca. La bajada debe durar 2-3 segundos."
+        startWeight: 20,
+        notes: "Recorrido cómodo y controlado. No bloquees las rodillas arriba ni aguantes la respiración.",
+        patologyNotes: "Retorno progresivo: empieza ligero y sube la carga solo si completas el rango con técnica limpia. Si notas molestia en rodilla o cadera, reduce el recorrido o la carga."
       },
       {
-        id: "bici_comun",
-        name: "Bicicleta estática (intensidades intercaladas)",
+        id: "remo_sentado_maquina",
+        name: "Remo sentado en máquina",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "back",
+        startWeight: 15,
+        notes: "Apoyo estable en el pecho. Cuello neutro y hombros lejos de las orejas.",
+        patologyNotes: "Latigazo cervical: no adelantes la cabeza al tirar ni encojas los hombros. Si aparece dolor cervical, detén el ejercicio."
+      },
+      {
+        id: "press_pecho_maquina",
+        name: "Press de pecho en máquina",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "chest",
+        startWeight: 15,
+        notes: "Carga moderada. Evita adelantar la cabeza o tensar el cuello. Empuja sin bloquear del todo los codos.",
+        patologyNotes: "Cuello: mantén la nuca apoyada y no empujes con la cabeza. Si la máquina te obliga a sacar el cuello, ajusta el asiento."
+      },
+      {
+        id: "curl_femoral",
+        name: "Curl femoral sentado/tumbado",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "legs",
+        startWeight: 10,
+        notes: "Movimiento lento y sin rebotes. Controla tanto la flexión como la vuelta.",
+        patologyNotes: "Isquiotibiales: evita tirones bruscos al estirar. Si notas calambre, baja la carga."
+      },
+      {
+        id: "jalon_neutro",
+        name: "Jalón al pecho agarre neutro",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "back",
+        startWeight: 15,
+        notes: "Agarre neutro (palmas enfrentadas). Lleva la barra a la parte alta del pecho con el torso casi vertical.",
+        patologyNotes: "Solo si resulta cómodo para el cuello. NUNCA tires detrás de la nuca. Si el cuello se tensa, cambia a máquina dorsal."
+      },
+      {
+        id: "abduccion_cadera",
+        name: "Abducción de cadera en máquina",
+        sets: 2,
+        reps: "12-15",
+        rest: 90,
+        muscle: "legs",
+        startWeight: 15,
+        notes: "Controla la ida y la vuelta. No busques cargas máximas.",
+        patologyNotes: "Cadera: movimiento suave, sin abrir de golpe. Mantén la espalda apoyada en el respaldo."
+      },
+      {
+        id: "cardio_bici",
+        name: "Bicicleta estática (ritmo cómodo)",
         sets: 1,
         reps: "10 min",
         rest: 0,
         muscle: "cardio",
-        video: "https://www.youtube.com/embed/D3eXmQ12w5A",
-        startWeight: 1, // Nivel de resistencia
-        notes: "Intercala 1 minuto moderado con 30 segundos de mayor intensidad.",
-        patologyNotes: "Ajuste de sillín: El sillín debe quedar a la altura de tu cadera al estar de pie, para evitar flexiones excesivas de rodilla."
+        startWeight: 1,
+        notes: "10-20 minutos a ritmo cómodo. Sube primero la duración hasta 25-30 min antes de buscar intensidad. Sin HIIT.",
+        patologyNotes: "Con propranolol la frecuencia cardíaca puede responder distinto: guíate por sensaciones (poder hablar en frases, sin mareo). Ajusta el sillín a la altura de la cadera."
       }
     ]
   },
   {
     id: "dia2",
-    name: "Día 2: Pecho y Tríceps",
-    muscles: "Pecho, Tríceps, Isquiotibiales y Cardio",
+    name: "Día B: Cuerpo Completo",
+    muscles: "Máquinas, poleas y cardio · Retorno progresivo",
     exercises: [
       {
-        id: "triceps_polea",
-        name: "Tríceps en polea alta",
-        sets: 4,
-        reps: "10",
-        rest: 60,
-        muscle: "triceps",
-        video: "https://www.youtube.com/embed/6xVf958C73w",
-        startWeight: 5,
-        notes: "Extiende los brazos hacia abajo por completo contrayendo el tríceps. Codos inmóviles.",
-        patologyNotes: "Codos protegidos: Evita que los codos se abran hacia afuera o suban más allá del pecho."
-      },
-      {
-        id: "chest_press",
-        name: "Máquina Chest Press (pecho)",
-        sets: 4,
-        reps: "10",
-        rest: 60,
-        muscle: "chest",
-        video: "https://www.youtube.com/embed/uGv23y6m_pQ",
-        startWeight: 15,
-        notes: "Empuja hacia el frente manteniendo los hombros pegados al respaldo. No despegues la espalda.",
-        patologyNotes: "Cuidado de hombros: Ajusta los agarres para que queden a la altura del pecho inferior, no del cuello."
-      },
-      {
-        id: "jalon_pecho",
-        name: "Jalón al pecho en polea",
-        sets: 4,
-        reps: "12",
-        rest: 60,
-        muscle: "back",
-        video: "https://www.youtube.com/embed/V6W3-mX1K6g",
-        startWeight: 15,
-        notes: "Lleva la barra hacia la parte alta del pecho, inclinando el torso levemente hacia atrás.",
-        patologyNotes: "Espalda lumbar: Controla el regreso. Tu core debe estar activado para evitar tirones lumbares."
-      },
-      {
-        id: "isquios_maquina",
-        name: "Isquiotibiales en máquina",
-        sets: 4,
-        reps: "12",
-        rest: 60,
+        id: "extension_rodilla",
+        name: "Extensión de rodilla en máquina",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
         muscle: "legs",
-        video: "https://www.youtube.com/embed/Yn1u325w_oY",
         startWeight: 10,
-        notes: "Contrae la parte trasera del muslo llevando los talones hacia los glúteos de forma controlada.",
-        patologyNotes: "Sin tirones: Controla el peso al estirar las piernas para no forzar los tendones poplíteos."
+        notes: "Carga inicial moderada y movimiento controlado. Ajusta el eje de la máquina a tu rodilla.",
+        patologyNotes: "Rodillas: no bloquees la extensión de golpe. La bajada debe durar 2-3 segundos."
       },
       {
-        id: "triceps_banco",
-        name: "Tríceps apoyado en banco",
-        sets: 4,
-        reps: "10",
-        rest: 60,
-        muscle: "triceps",
-        video: "https://www.youtube.com/embed/d_K6_N22s-g",
-        startWeight: 0, // Peso corporal
-        notes: "Si es muy pesado, flexiona las rodillas y apoya los pies más cerca del cuerpo. Baja solo hasta que tus codos hagan 90 grados.",
-        patologyNotes: "Hombros e impacto: Dado el peso actual, pon tus pies bien cerca del banco para quitarle carga. Si te duele el hombro, cámbialo por extensiones en polea."
-      },
-      {
-        id: "maquina_pectoral",
-        name: "Máquina pectoral (Aperturas / Pec Deck)",
-        sets: 4,
-        reps: "10",
-        rest: 60,
+        id: "press_inclinado_maquina",
+        name: "Press inclinado en máquina",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
         muscle: "chest",
-        video: "https://www.youtube.com/embed/G6j56YyNPlU",
         startWeight: 10,
-        notes: "Junta los brazos en el centro apretando el pecho. Abre despacio controlando la resistencia.",
-        patologyNotes: "Hombro anterior: No dejes que los brazos vayan muy atrás de la línea de tus hombros en la fase de apertura."
+        notes: "Cabeza apoyada si la máquina lo permite. Empuje controlado sin despegar la espalda.",
+        patologyNotes: "Detén el ejercicio si aumentan los síntomas cervicales. No saques el cuello hacia delante."
       },
       {
-        id: "bici_horizontal",
-        name: "Bicicleta horizontal (intensidades alternas)",
+        id: "remo_apoyo_pecho",
+        name: "Remo con apoyo de pecho",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "back",
+        startWeight: 15,
+        notes: "Pecho apoyado en el soporte. Junta las escápulas sin encoger los hombros hacia las orejas.",
+        patologyNotes: "Preferible a variantes que exijan estabilizar mucho el tronco o el cuello. Apoyo firme y cuello neutro."
+      },
+      {
+        id: "curl_femoral_dia2",
+        name: "Curl femoral",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "legs",
+        startWeight: 10,
+        notes: "Sin movimientos bruscos. Controla la vuelta del peso.",
+        patologyNotes: "Isquiotibiales: si notas tirón, reduce la carga y el rango."
+      },
+      {
+        id: "biceps_polea",
+        name: "Bíceps en polea o máquina",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "biceps",
+        startWeight: 5,
+        notes: "Codos estables y postura relajada. Sin balancear el tronco.",
+        patologyNotes: "Hombros y cuello: mantén los hombros bajos y el cuello neutro durante todo el recorrido."
+      },
+      {
+        id: "triceps_polea",
+        name: "Tríceps en polea",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "triceps",
+        startWeight: 5,
+        notes: "Codos pegados al cuerpo. Extiende sin inclinar excesivamente el tronco.",
+        patologyNotes: "Sin tensar los cervicales ni encogerte. Si el cuello se carga, baja la carga."
+      },
+      {
+        id: "cardio_bici_dia2",
+        name: "Bicicleta estática (ritmo cómodo)",
         sets: 1,
-        reps: "15 min",
+        reps: "10 min",
         rest: 0,
         muscle: "cardio",
-        video: "https://www.youtube.com/embed/D3eXmQ12w5A",
         startWeight: 1,
-        notes: "Excelente opción cardiovascular que libera la presión sobre la columna y rodillas.",
-        patologyNotes: "Amigable con articulaciones: Mantén un pedaleo constante a un nivel de resistencia bajo-medio."
+        notes: "10-20 minutos a ritmo cómodo. Prioriza duración antes que intensidad. Sin HIIT.",
+        patologyNotes: "Guiate por sensaciones, no solo por pulso (propranolol). Debes poder hablar en frases y no marearte."
       }
     ]
   },
   {
     id: "dia3",
-    name: "Día 3: Hombros, Espalda y Piernas",
-    muscles: "Hombros, Espalda, Piernas y Cardio",
+    name: "Día C: Cuerpo Completo",
+    muscles: "Máquinas, poleas y cardio · Retorno progresivo",
     exercises: [
       {
-        id: "cinta_correr",
-        name: "Cinta de correr (caminar con pendiente)",
+        id: "prensa_piernas_dia3",
+        name: "Prensa de piernas",
+        sets: 2,
+        reps: "12",
+        rest: 90,
+        muscle: "legs",
+        startWeight: 15,
+        notes: "Carga algo menor que el día A y técnica limpia. Recorrido cómodo.",
+        patologyNotes: "Rodillas: sin bloqueos ni rebotes. Si el día A te dejó agujetas fuertes, mantén esta carga más ligera."
+      },
+      {
+        id: "jalon_neutro_dia3",
+        name: "Jalón neutro o máquina dorsal",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "back",
+        startWeight: 15,
+        notes: "Elige la variante que mejor tolere tu cuello. Movimiento controlado.",
+        patologyNotes: "Latigazo cervical: nada de jalón tras nuca. Si el jalón molesta, usa la máquina dorsal."
+      },
+      {
+        id: "press_pecho_maquina_dia3",
+        name: "Press de pecho en máquina",
+        sets: 2,
+        reps: "10-12",
+        rest: 90,
+        muscle: "chest",
+        startWeight: 15,
+        notes: "Sin llegar al fallo. Deja 3-4 repeticiones en reserva.",
+        patologyNotes: "Cuello y hombros: nuca apoyada, hombros lejos de las orejas."
+      },
+      {
+        id: "extension_cadera",
+        name: "Extensión de cadera en máquina/polea",
+        sets: 2,
+        reps: "10-12 por lado",
+        rest: 90,
+        muscle: "legs",
+        startWeight: 5,
+        notes: "Solo si la posición es estable y cómoda. Movimiento corto y controlado.",
+        patologyNotes: "Si la postura te obliga a arquear la espalda o tensar el cuello, omite este ejercicio."
+      },
+      {
+        id: "face_pull",
+        name: "Face pull muy ligero",
+        sets: 2,
+        reps: "12-15",
+        rest: 90,
+        muscle: "shoulders",
+        startWeight: 5,
+        notes: "Polea alta con cuerda. Tira hacia la cara separando las manos, con carga muy ligera.",
+        patologyNotes: "Únicamente si tu fisioterapeuta lo considera compatible con el latigazo cervical. Si duda, omítelo."
+      },
+      {
+        id: "gemelos_maquina",
+        name: "Elevación de gemelos en máquina",
+        sets: 2,
+        reps: "12-15",
+        rest: 90,
+        muscle: "legs",
+        startWeight: 20,
+        notes: "Controla la bajada y usa un apoyo estable. Rango completo sin rebotes.",
+        patologyNotes: "Tendón de Aquiles: baja despacio. Si notas pinchazo, reduce carga y rango."
+      },
+      {
+        id: "cardio_cinta",
+        name: "Cinta de correr (caminar)",
         sets: 1,
         reps: "10 min",
         rest: 0,
         muscle: "cardio",
-        video: "https://www.youtube.com/embed/g6Wk63yJ4t0",
-        startWeight: 3, // Velocidad en km/h
-        notes: "Ajusta la velocidad a ritmo de caminata activa (ej. 3.5 a 4.5 km/h) y añade 1-2% de inclinación si te sientes cómodo.",
-        patologyNotes: "Cero impacto: CAMINA, no corras. La caminata es excelente para tus articulaciones a 148kg."
-      },
-      {
-        id: "low_row",
-        name: "Máquina de espalda (Dorsales - Low Row)",
-        sets: 4,
-        reps: "15",
-        rest: 60,
-        muscle: "back",
-        video: "https://www.youtube.com/embed/8-9-oNqOq8c",
-        startWeight: 15,
-        notes: "Tira de los agarres hacia atrás contrayendo la zona dorsal baja. Mantén el pecho firme contra el apoyo.",
-        patologyNotes: "Espalda baja: Apoyarse en el rodillo/pecho reduce drásticamente la tensión en la zona lumbar."
-      },
-      {
-        id: "hombros_laterales",
-        name: "Hombros laterales con mancuerna",
-        sets: 4,
-        reps: "8",
-        rest: 60,
-        muscle: "shoulders",
-        video: "https://www.youtube.com/embed/t0mP85hL_iI",
-        startWeight: 2, // 2kg o 3kg
-        notes: "Eleva los brazos hacia los lados formando una 'T', con los codos ligeramente flexionados.",
-        patologyNotes: "Sin impulsos: Si tienes que balancearte, baja el peso. Mantén el cuerpo erguido."
-      },
-      {
-        id: "aductor_maquina",
-        name: "Máquina de Aductores",
-        sets: 4,
-        reps: "12",
-        rest: 60,
-        muscle: "legs",
-        video: "https://www.youtube.com/embed/8kX72k15fsw",
-        startWeight: 10,
-        notes: "Cierra las piernas de forma controlada apretando la cara interna de los muslos.",
-        patologyNotes: "Cadera y pelvis: Evita movimientos explosivos. Cierra suavemente y abre reteniendo el peso."
-      },
-      {
-        id: "hombros_frontales",
-        name: "Hombros frontales con polea",
-        sets: 4,
-        reps: "10",
-        rest: 60,
-        muscle: "shoulders",
-        video: "https://www.youtube.com/embed/g3m7n65Hjic",
-        startWeight: 5,
-        notes: "Espalda a la polea. Eleva el brazo al frente hasta la altura del hombro de forma controlada.",
-        patologyNotes: "Hombro sano: No subas la mano por encima del nivel de los ojos para evitar rozamiento en el tendón del supraespinoso."
-      },
-      {
-        id: "vertical_traction",
-        name: "Máquina de espalda (Dorsales - Vertical Traction)",
-        sets: 4,
-        reps: "12",
-        rest: 60,
-        muscle: "back",
-        video: "https://www.youtube.com/embed/n4sO_3H5k8o",
-        startWeight: 15,
-        notes: "Tracción vertical guiada. Tira de los agarres hacia abajo sintiendo la contracción del dorsal ancho.",
-        patologyNotes: "Movimiento seguro: La máquina guía el recorrido, lo que te ayuda a entrenar de forma muy estable y segura."
+        startWeight: 3,
+        notes: "CAMINA, no corras. Ritmo en el que puedas hablar en frases. Puedes añadir 1-2% de inclinación si es cómodo.",
+        patologyNotes: "Guiate por sensaciones (propranolol). Sin mareo ni falta de aire desproporcionada. Detente si aparece dolor torácico."
       }
     ]
   }
@@ -277,7 +288,7 @@ const MUSCLE_HIGHLIGHTS_SVG = {
         <path d="M 75,180 L 65,280 L 58,370 C 56,380 66,380 66,370 L 82,280 L 98,180" />
         <path d="M 125,180 L 135,280 L 142,370 C 144,380 134,380 134,370 L 118,280 L 102,180" />
       </g>
-      
+
       <!-- Músculos Activos Frontales -->
       <g id="muscle-pecho" class="muscle-group" fill="none">
         <!-- Pectoral Izq y Der -->
@@ -318,7 +329,7 @@ const MUSCLE_HIGHLIGHTS_SVG = {
         <path d="M 75,180 L 65,280 L 58,370 C 56,380 66,380 66,370 L 82,280 L 98,180" />
         <path d="M 125,180 L 135,280 L 142,370 C 144,380 134,380 134,370 L 118,280 L 102,180" />
       </g>
-      
+
       <!-- Músculos Activos Traseros -->
       <g id="muscle-espalda" class="muscle-group" fill="none">
         <!-- Trapecios y Dorsales -->
@@ -369,4 +380,3 @@ const GYM_MOTIVATIONS = [
 
 // Historial inicial de báscula corporal de Rafael Carcel
 const INITIAL_WEIGHT_HISTORY = [];
-

@@ -18,6 +18,14 @@ let state = {
 // AudioContext para sintetizar sonido de aviso sin depender de archivos de audio externos
 let audioCtx = null;
 
+// Fecha local en formato YYYY-MM-DD. toISOString() devuelve UTC y desfasa el
+// día cerca de medianoche, así que se ajusta restando el offset de la zona.
+function getLocalDateString(date = new Date()) {
+  const d = new Date(date.getTime());
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
+}
+
 // Inicialización de la aplicación
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -111,6 +119,15 @@ function loadStateFromLocalStorage() {
   if (savedSettings) {
     state.settings = savedSettings;
   }
+
+  // Migración del plan de entrenamiento: al cambiar ROUTINES_VERSION se
+  // sustituyen las rutinas guardadas (local y, después, en Firebase).
+  if (state.settings.routinesVersion !== ROUTINES_VERSION) {
+    state.routines = JSON.parse(JSON.stringify(INITIAL_ROUTINES));
+    state.settings.routinesVersion = ROUTINES_VERSION;
+    saveLocalStorageOnly('routines');
+    saveLocalStorageOnly('settings');
+  }
 }
 
 // Guardar solo en localStorage (sin red, para la carga inicial rápida)
@@ -142,16 +159,35 @@ async function syncFromFirebaseInBackground() {
     if (docSnap.exists()) {
       const data = docSnap.data();
       let needsRefresh = false;
+      const cloudVersion = (data.settings && data.settings.routinesVersion) || 0;
+      const localVersion = state.settings.routinesVersion || 0;
 
-      // Solo actualizar si Firebase tiene datos más recientes
-      if (data.routines && data.routines.length > 0) {
-        const localRoutinesStr = JSON.stringify(state.routines);
-        const fbRoutinesStr = JSON.stringify(data.routines);
-        if (localRoutinesStr !== fbRoutinesStr) {
+      // Rutinas: gana el plan de versión más alta. Si el local es más nuevo
+      // (p. ej. tras una actualización del plan), se sube a la nube.
+      if (cloudVersion > localVersion) {
+        if (data.routines && data.routines.length > 0) {
           state.routines = data.routines;
           localStorage.setItem('kf_routines', JSON.stringify(state.routines));
           needsRefresh = true;
         }
+        if (data.settings) {
+          // Adoptar el plan de la nube, pero conservar las preferencias locales
+          // (sonido, alertas, altura son propias de cada dispositivo) y fijar la
+          // versión de la nube para no volver a subir el plan antiguo.
+          state.settings = Object.assign({}, data.settings, state.settings, {
+            routinesVersion: cloudVersion
+          });
+          localStorage.setItem('kf_settings', JSON.stringify(state.settings));
+        }
+      } else if (cloudVersion < localVersion) {
+        // El plan local es más nuevo: subir SOLO rutinas y configuración.
+        // Nunca se envía el historial aquí, para no sobrescribir en la nube con
+        // un historial local vacío (móvil nuevo, datos borrados, etc.).
+        await pushRoutinesToCloud();
+      } else if (data.settings) {
+        // Misma versión: conservar preferencias locales (sonido, alertas, altura)
+        state.settings = Object.assign({}, data.settings, state.settings);
+        localStorage.setItem('kf_settings', JSON.stringify(state.settings));
       }
 
       if (data.history && data.history.length > state.history.length) {
@@ -166,11 +202,6 @@ async function syncFromFirebaseInBackground() {
         needsRefresh = true;
       }
 
-      if (data.settings) {
-        state.settings = data.settings;
-        localStorage.setItem('kf_settings', JSON.stringify(state.settings));
-      }
-
       // Si hubo cambios desde Firebase, re-renderizar las vistas silenciosamente
       if (needsRefresh) {
         console.log('Datos actualizados desde Firebase en segundo plano.');
@@ -178,9 +209,29 @@ async function syncFromFirebaseInBackground() {
         try { renderEditorPanel(); } catch(e) {}
         try { updateDashboard(); } catch(e) {}
       }
+    } else {
+      // Primera vez: no existe documento en la nube → publicar el plan actual
+      await pushRoutinesToCloud();
     }
   } catch (error) {
     console.error('Error sincronizando Firebase en segundo plano:', error);
+  }
+}
+
+// Sube únicamente el plan de rutinas y la configuración activa a Firebase.
+// Se usa al detectar que el plan local es más reciente que el de la nube;
+// deliberadamente NO toca history ni weight para no perder progreso registrado.
+async function pushRoutinesToCloud() {
+  if (!window.firebaseDb) return;
+  try {
+    const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
+    await window.firebaseSetDoc(docRef, {
+      routines: state.routines,
+      settings: state.settings
+    }, { merge: true });
+    console.log('Plan de rutinas actualizado en Firebase.');
+  } catch (error) {
+    console.error("Error subiendo el plan de rutinas a Firebase:", error);
   }
 }
 
@@ -332,7 +383,7 @@ function setupEventListeners() {
       if (weightVal && dateVal) {
         addWeightRecord(dateVal, weightVal, fatVal, bmiVal, muscleVal, leanVal, visceralVal, waterVal, ageVal);
         weightForm.reset();
-        document.getElementById('input-weight-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('input-weight-date').value = getLocalDateString();
         renderMetricsPanel();
         updateDashboard();
       }
@@ -454,10 +505,14 @@ function calculateWorkoutStreak() {
 }
 
 function calculateTotalWorkouts() {
-  // Contamos entrenamientos únicos completados (agrupados por fecha y rutina)
+  // Cada sesión completada lleva su propio sessionId, así que dos sesiones el
+  // mismo día (mismo routineId) cuentan como dos entrenamientos. Los registros
+  // antiguos, sin sessionId, se agrupan por fecha + rutina como antes.
   const uniqueWorkouts = {};
   state.history.forEach(log => {
-    const key = `${log.date}_${log.routineId || 'default'}`;
+    const key = log.sessionId
+      ? `s_${log.sessionId}`
+      : `${log.date}_${log.routineId || 'default'}`;
     uniqueWorkouts[key] = true;
   });
   return Object.keys(uniqueWorkouts).length;
@@ -604,6 +659,7 @@ function startWorkoutSession(routineId) {
     routineId: routineId,
     routineName: routine.name,
     startTime: new Date(),
+    sessionId: Date.now(),
     exercises: JSON.parse(JSON.stringify(routine.exercises)), // copia profunda
     currentIndex: 0,
     logs: [] // almacena logs de cada ejercicio completado
@@ -670,7 +726,31 @@ function renderActiveExercise() {
     'elevaciones_laterales': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/delts/dumbbell-lateral-raise.gif',
     'aductores': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/adductors/lever-seated-hip-adduction.gif',
     'abductores': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/abductors/lever-seated-hip-abduction.gif',
-    
+
+    // Plan de retorno al entrenamiento (Joel Cabado)
+    'prensa_piernas': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/quads/lever-alternate-leg-press.gif',
+    'remo_sentado_maquina': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/upper-back/lever-seated-row.gif',
+    'press_pecho_maquina': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/lever-chest-press.gif',
+    'curl_femoral': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/hamstrings/lever-seated-leg-curl.gif',
+    'jalon_neutro': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/lats/twin-handle-parallel-grip-lat-pulldown.gif',
+    'abduccion_cadera': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/abductors/lever-seated-hip-abduction.gif',
+    'extension_rodilla': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/quads/lever-leg-extension.gif',
+    'press_inclinado_maquina': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/lever-incline-chest-press.gif',
+    'remo_apoyo_pecho': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/upper-back/lever-high-row.gif',
+    'biceps_polea': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/biceps/cable-curl.gif',
+    'triceps_polea': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/triceps/cable-pushdown.gif',
+    'extension_cadera': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/glutes/lever-hip-extension-v-2.gif',
+    'face_pull': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/delts/cable-rear-delt-row-with-rope.gif',
+    'gemelos_maquina': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/calves/lever-seated-calf-raise.gif',
+    'cardio_bici': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/cardio/stationary-bike-walk.gif',
+    'cardio_cinta': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/cardio/walking-on-incline-treadmill.gif',
+    // Variantes de día (mismo ejercicio, progresión independiente por sesión)
+    'prensa_piernas_dia3': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/quads/lever-alternate-leg-press.gif',
+    'jalon_neutro_dia3': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/lats/twin-handle-parallel-grip-lat-pulldown.gif',
+    'press_pecho_maquina_dia3': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/lever-chest-press.gif',
+    'curl_femoral_dia2': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/hamstrings/lever-seated-leg-curl.gif',
+    'cardio_bici_dia2': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/cardio/stationary-bike-walk.gif',
+
     // Fallbacks por grupos musculares
     'back': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/upper-back/cable-seated-row.gif',
     'biceps': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/biceps/dumbbell-biceps-curl.gif',
@@ -678,7 +758,7 @@ function renderActiveExercise() {
     'chest': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/barbell-bench-press.gif',
     'shoulders': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/delts/dumbbell-lateral-raise.gif',
     'legs': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/quads/lever-leg-extension.gif',
-    'cardio': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/quads/lever-leg-extension.gif'
+    'cardio': 'https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/cardio/walking-on-incline-treadmill.gif'
   };
 
   const gifUrl = illustrations[exercise.id] || illustrations[exercise.muscle] || '';
@@ -919,7 +999,7 @@ function handleNextExerciseClick() {
   const repsInputs = document.querySelectorAll('.reps-input');
   const difficulty = document.querySelector('.difficulty-btn.selected').getAttribute('data-diff');
   
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
 
   weightInputs.forEach((input, index) => {
     const weightVal = parseFloat(input.value) || 0;
@@ -928,6 +1008,7 @@ function handleNextExerciseClick() {
     const logEntry = {
       date: todayStr,
       routineId: workout.routineId,
+      sessionId: workout.sessionId,
       exerciseId: exercise.id,
       exerciseName: exercise.name,
       setIndex: index + 1,
@@ -1250,6 +1331,29 @@ function addWeightRecord(date, weight, fat, bmi, muscle, leanMass, visceral, wat
 // 6. INFORMES Y ESTADÍSTICAS
 // ==========================================
 
+// Etiqueta el nombre del ejercicio con su día cuando el mismo nombre aparece
+// en varios días (p. ej. "Prensa de piernas · Día C"), para que dos
+// progresiones independientes no parezcan duplicadas al usuario.
+function getExerciseDisplayName(exerciseId) {
+  let target = null;
+  let dayName = '';
+  const nameCounts = {};
+
+  state.routines.forEach(routine => {
+    routine.exercises.forEach(ex => {
+      nameCounts[ex.name] = (nameCounts[ex.name] || 0) + 1;
+      if (ex.id === exerciseId) {
+        target = ex;
+        dayName = routine.name.split(':')[0];
+      }
+    });
+  });
+
+  if (!target) return '';
+  if ((nameCounts[target.name] || 0) < 2) return target.name;
+  return `${target.name} · ${dayName}`;
+}
+
 function renderReportsPanel() {
   const volumeCanvas = document.getElementById('volume-chart');
   const strengthCanvas = document.getElementById('strength-chart');
@@ -1266,9 +1370,9 @@ function renderReportsPanel() {
       if (!addedExercises[ex.id]) {
         const option = document.createElement('option');
         option.value = ex.id;
-        option.textContent = ex.name;
+        option.textContent = getExerciseDisplayName(ex.id);
         exerciseSelect.appendChild(option);
-        addedExercises[ex.id] = ex.name;
+        addedExercises[ex.id] = getExerciseDisplayName(ex.id);
       }
     });
   });
@@ -1306,10 +1410,11 @@ function renderGeneralGymReport() {
 
   // Obtener todos los ejercicios estructurados de las rutinas actuales del usuario
   const allExercises = [];
+  const seenIds = new Set();
   state.routines.forEach(routine => {
     routine.exercises.forEach(ex => {
-      // Evitar duplicados
-      if (!allExercises.some(item => item.id === ex.id)) {
+      if (!seenIds.has(ex.id)) {
+        seenIds.add(ex.id);
         allExercises.push(ex);
       }
     });
@@ -1381,7 +1486,7 @@ function renderGeneralGymReport() {
     const difficultyBadgeText = difficultyLabels[lastDifficulty] || lastDifficulty;
 
     tr.innerHTML = `
-      <td style="font-weight:600;color:var(--text-main);">${ex.name}</td>
+      <td style="font-weight:600;color:var(--text-main);">${getExerciseDisplayName(ex.id)}</td>
       <td class="muscle-badge-col"><span class="muscle-badge-${ex.muscle}">${ex.muscle}</span></td>
       <td style="font-family:'Orbitron',sans-serif;font-weight:600;color:var(--text-muted);">${startWeight} kg</td>
       <td style="font-family:'Orbitron',sans-serif;font-weight:600;color:var(--text-main);">${maxWeight > 0 ? `${maxWeight} kg` : '-'}</td>
@@ -1419,12 +1524,11 @@ function exportDataToCSV() {
   state.history.forEach(log => {
     csvContent += `"${log.date}","${log.routineId || ''}","${log.exerciseName}",${log.setIndex},${log.reps},${log.weight},"${log.difficulty || ''}"\n`;
   });
-
   // Codificar y descargar
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `KeasyFit_Reporte_Rafael_${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute("download", `KeasyFit_Reporte_Rafael_${getLocalDateString()}.csv`);
   document.body.appendChild(link);
   
   link.click();
@@ -1468,7 +1572,7 @@ function renderEditorPanel() {
       <td>${ex.sets}</td>
       <td>${ex.reps}</td>
       <td>${ex.rest}s</td>
-      <td> kg</td>
+      <td>${ex.startWeight} kg</td>
       <td>
         <div class="action-buttons">
           <button class="btn-icon" title="Subir" onclick="moveExercise(${index}, -1)">▲</button>

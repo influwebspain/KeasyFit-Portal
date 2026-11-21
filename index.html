@@ -802,7 +802,7 @@
     document.getElementById('svg-muscle-back').innerHTML = MUSCLE_HIGHLIGHTS_SVG.back;
     
     // Iniciar fecha por defecto en formulario de peso
-    document.getElementById('input-weight-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('input-weight-date').value = getLocalDateString();
 
     // Mostrar aviso si las notificaciones no están activas y el navegador lo soporta
     if ("Notification" in window && Notification.permission !== "granted") {

@@ -1,0 +1,5 @@
+# Configuración local del asistente (permisos de máquina, no del proyecto)
+.claude/settings.local.json
+
+# Documentos sueltos / temporales
+*.pdf
