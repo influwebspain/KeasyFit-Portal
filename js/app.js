@@ -1,4 +1,4 @@
-// Controlador Principal de la Aplicación - KeasyFit
+// Controlador Principal de la Aplicación - FitActive
 
 // Estado global de la aplicación
 let state = {
@@ -704,6 +704,11 @@ function renderActiveExercise() {
     Ejercicio ${workout.currentIndex + 1} de ${workout.exercises.length} &bull; ${exercise.sets} Series de ${exercise.reps} Reps &bull; ${muscleSpan}
   `;
 
+  const targetRepsEl = document.getElementById('exercise-target-reps');
+  if (targetRepsEl) {
+    targetRepsEl.textContent = `Meta: ${exercise.sets} × ${exercise.reps}`;
+  }
+
   // Cargar animación deportiva (GIF) que demuestra los pasos del movimiento en tiempo real
   const videoWrapper = document.getElementById('active-video-container');
   
@@ -777,9 +782,9 @@ function renderActiveExercise() {
 
   if (gifUrl) {
     videoWrapper.innerHTML = `
-      <div class="video-cover-card" style="cursor: default; padding: 0; background: #0a0b0e; border: 1px solid rgba(0, 240, 255, 0.1);">
+      <div class="video-cover-card" style="cursor: default; padding: 0; background: #ffffff; border: 1px solid var(--border-color);">
         <img src="${gifUrl}" alt="${exercise.name}" style="width:100%; height:100%; object-fit:contain;" onerror="this.onerror=null; this.src='${fallbackUrl}';">
-        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, rgba(10,11,14,0.95) 0%, rgba(10,11,14,0) 100%); padding: 1.5rem 1rem 0.8rem; border-radius: 0 0 12px 12px; text-align: center; z-index: 5;">
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0) 100%); padding: 1.5rem 1rem 0.8rem; border-radius: 0 0 12px 12px; text-align: center; z-index: 5;">
           <div class="video-cover-text">${exercise.name}</div>
           <div class="video-cover-sub">Ilustración de Movimiento (Pasos)</div>
         </div>
@@ -787,7 +792,7 @@ function renderActiveExercise() {
     `;
   } else {
     videoWrapper.innerHTML = `
-      <div class="video-cover-card" style="background-image: linear-gradient(180deg, rgba(10,11,14,0.1) 0%, rgba(10,11,14,0.85) 100%), url('${fallbackUrl}'); cursor: default;">
+      <div class="video-cover-card" style="background-image: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.85) 100%), url('${fallbackUrl}'); cursor: default;">
         <div class="video-cover-text">${exercise.name}</div>
         <div class="video-cover-sub">Ilustración Guía de Técnica</div>
       </div>
@@ -1261,13 +1266,13 @@ function renderInBodyComparisonTable() {
     html += `
       <tr>
         <td class="metric-label-col">${row.label}</td>
-        <td style="font-family:'Orbitron',sans-serif;font-weight:600;">${baseVal !== undefined && baseVal !== null ? `${baseVal} ${row.unit}` : '-'}</td>
+        <td style="font-weight:600;">${baseVal !== undefined && baseVal !== null ? `${baseVal} ${row.unit}` : '-'}</td>
     `;
 
     // Valores intermedios
     compareList.forEach(item => {
       const val = item[row.key];
-      html += `<td style="font-family:'Orbitron',sans-serif;">${val !== undefined && val !== null ? `${val} ${row.unit}` : '-'}</td>`;
+      html += `<td>${val !== undefined && val !== null ? `${val} ${row.unit}` : '-'}</td>`;
     });
 
     // Calcular cambio global (Base vs Último)
@@ -1289,7 +1294,7 @@ function renderInBodyComparisonTable() {
     }
 
     html += `
-        <td style="background:rgba(255,255,255,0.01);">${deltaHtml}</td>
+        <td style="background:rgba(15,23,42,0.02);">${deltaHtml}</td>
       </tr>
     `;
   });
@@ -1488,13 +1493,13 @@ function renderGeneralGymReport() {
     tr.innerHTML = `
       <td style="font-weight:600;color:var(--text-main);">${getExerciseDisplayName(ex.id)}</td>
       <td class="muscle-badge-col"><span class="muscle-badge-${ex.muscle}">${ex.muscle}</span></td>
-      <td style="font-family:'Orbitron',sans-serif;font-weight:600;color:var(--text-muted);">${startWeight} kg</td>
-      <td style="font-family:'Orbitron',sans-serif;font-weight:600;color:var(--text-main);">${maxWeight > 0 ? `${maxWeight} kg` : '-'}</td>
-      <td style="font-family:'Orbitron',sans-serif;"><span class="delta-cell ${progressClass}">${progressText}</span></td>
+      <td style="font-weight:600;color:var(--text-muted);">${startWeight} kg</td>
+      <td style="font-weight:600;color:var(--text-main);">${maxWeight > 0 ? `${maxWeight} kg` : '-'}</td>
+      <td><span class="delta-cell ${progressClass}">${progressText}</span></td>
       <td>
         ${lastDifficulty !== '-' ? `<span class="difficulty-badge ${lastDifficulty}">${difficultyBadgeText}</span>` : '-'}
       </td>
-      <td style="font-family:'Orbitron',sans-serif;font-weight:700;color:var(--primary);">${recommendedWeight} kg</td>
+      <td style="font-weight:700;color:var(--primary);">${recommendedWeight} kg</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1528,7 +1533,7 @@ function exportDataToCSV() {
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `KeasyFit_Reporte_Rafael_${getLocalDateString()}.csv`);
+  link.setAttribute("download", `FitActive_Reporte_Rafael_${getLocalDateString()}.csv`);
   document.body.appendChild(link);
   
   link.click();
@@ -1754,7 +1759,7 @@ function requestAndTestNotifications() {
 
   Notification.requestPermission().then(permission => {
     if (permission === "granted") {
-      new Notification("🏋️‍♂️ KeasyFit Activado", {
+      new Notification("🏋️‍♂️ FitActive Activado", {
         body: "¡Hola Rafael! Las alertas de entrenamiento están configuradas correctamente.",
         icon: "https://cdn-icons-png.flaticon.com/512/3043/3043231.png" // Icono de mancuerna representativo
       });
@@ -1785,7 +1790,7 @@ function checkTrainingNotification() {
   // Comprobar si coincide la hora exacta (se ejecuta una vez por minuto)
   if (currentHour === targetHour && currentMin === targetMin) {
     new Notification("🏋️‍♂️ ¡Hora de Entrenar, Rafael!", {
-      body: "Es hora de tu rutina de KeasyFit. ¡Ponte tus zapatillas y a por ello!",
+      body: "Es hora de tu rutina de FitActive. ¡Ponte tus zapatillas y a por ello!",
       requireInteraction: true
     });
   }

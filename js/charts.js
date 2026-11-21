@@ -1,16 +1,18 @@
-// Controlador de Gráficos de Rendimiento y Peso - KeasyFit
+// Controlador de Gráficos de Rendimiento y Peso - FitActive
 
 let weightChartInstance = null;
 let strengthChartInstance = null;
 let volumeChartInstance = null;
 
-// Configuración común de estilos para Chart.js
+// Configuración común de estilos para Chart.js (tema claro)
 const chartStyles = {
   fontFamily: "'Inter', sans-serif",
-  gridColor: 'rgba(255, 255, 255, 0.05)',
-  textColor: '#8e9aa8',
-  tooltipBg: '#12141a',
-  tooltipBorder: 'rgba(255, 255, 255, 0.1)'
+  gridColor: 'rgba(15, 23, 42, 0.07)',
+  textColor: '#64748b',
+  tooltipBg: '#ffffff',
+  tooltipBorder: 'rgba(15, 23, 42, 0.12)',
+  tooltipTitle: '#0f172a',
+  tooltipBody: '#334155'
 };
 
 /**
@@ -44,14 +46,14 @@ function renderWeightChart(canvas, history, selectedMetric = 'weight') {
   
   // Configuración por métrica
   const metricConfigs = {
-    weight: { label: 'Peso Corporal (kg)', color: '#00f0ff', key: 'weight' },
-    fat: { label: 'Grasa Corporal (%)', color: '#ff5a00', key: 'fat' },
-    bmi: { label: 'Índice de Masa Corporal (IMC)', color: '#ff3b30', key: 'bmi' },
-    muscle: { label: 'Masa Muscular (kg)', color: '#ccff00', key: 'muscle' },
-    leanMass: { label: 'Masa Corporal Magra (kg)', color: '#a0aec0', key: 'leanMass' },
-    visceral: { label: 'Grasa Visceral (Índice)', color: '#e53e3e', key: 'visceral' },
-    water: { label: 'Agua Corporal (%)', color: '#4299e1', key: 'water' },
-    bodyAge: { label: 'Edad Corporal (años)', color: '#9f7aea', key: 'bodyAge' }
+    weight: { label: 'Peso Corporal (kg)', color: '#2563eb', key: 'weight' },
+    fat: { label: 'Grasa Corporal (%)', color: '#f59e0b', key: 'fat' },
+    bmi: { label: 'Índice de Masa Corporal (IMC)', color: '#ef4444', key: 'bmi' },
+    muscle: { label: 'Masa Muscular (kg)', color: '#10b981', key: 'muscle' },
+    leanMass: { label: 'Masa Corporal Magra (kg)', color: '#0d9488', key: 'leanMass' },
+    visceral: { label: 'Grasa Visceral (Índice)', color: '#be123c', key: 'visceral' },
+    water: { label: 'Agua Corporal (%)', color: '#0ea5e9', key: 'water' },
+    bodyAge: { label: 'Edad Corporal (años)', color: '#7c3aed', key: 'bodyAge' }
   };
 
   const config = metricConfigs[selectedMetric] || metricConfigs.weight;
@@ -78,7 +80,7 @@ function renderWeightChart(canvas, history, selectedMetric = 'weight') {
           fill: true,
           tension: 0.3,
           pointBackgroundColor: config.color,
-          pointBorderColor: '#08090c',
+          pointBorderColor: '#ffffff',
           pointHoverRadius: 7,
           pointRadius: 5
         }
@@ -98,8 +100,8 @@ function renderWeightChart(canvas, history, selectedMetric = 'weight') {
           backgroundColor: chartStyles.tooltipBg,
           borderColor: chartStyles.tooltipBorder,
           borderWidth: 1,
-          titleColor: '#fff',
-          bodyColor: '#e2e8f0',
+          titleColor: chartStyles.tooltipTitle,
+          bodyColor: chartStyles.tooltipBody,
           titleFont: { family: chartStyles.fontFamily, weight: 'bold' },
           bodyFont: { family: chartStyles.fontFamily }
         }
@@ -152,8 +154,8 @@ function renderStrengthChart(canvas, history, exerciseName) {
   const ctx = canvas.getContext('2d');
   
   const strengthGrad = ctx.createLinearGradient(0, 0, 0, 300);
-  strengthGrad.addColorStop(0, 'rgba(204, 255, 0, 0.25)');
-  strengthGrad.addColorStop(1, 'rgba(204, 255, 0, 0.0)');
+  strengthGrad.addColorStop(0, 'rgba(37, 99, 235, 0.22)');
+  strengthGrad.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
 
   strengthChartInstance = new Chart(ctx, {
     type: 'line',
@@ -163,13 +165,13 @@ function renderStrengthChart(canvas, history, exerciseName) {
         {
           label: `Peso Máximo (${exerciseName})`,
           data: weights,
-          borderColor: '#ccff00',
+          borderColor: '#2563eb',
           backgroundColor: strengthGrad,
           borderWidth: 3,
           fill: true,
           tension: 0.2,
-          pointBackgroundColor: '#ccff00',
-          pointBorderColor: '#08090c',
+          pointBackgroundColor: '#2563eb',
+          pointBorderColor: '#ffffff',
           pointHoverRadius: 7,
           pointRadius: 5
         }
@@ -255,11 +257,11 @@ function renderVolumeChart(canvas, history) {
         {
           label: 'Volumen Levantado (kg total)',
           data: volumes,
-          backgroundColor: 'rgba(255, 90, 0, 0.4)',
-          borderColor: '#ff5a00',
+          backgroundColor: 'rgba(16, 185, 129, 0.35)',
+          borderColor: '#10b981',
           borderWidth: 2,
           borderRadius: 6,
-          hoverBackgroundColor: '#ff5a00'
+          hoverBackgroundColor: '#10b981'
         }
       ]
     },

@@ -1,6 +1,6 @@
-# 🏋️‍♂️ KeasyFit Portal - Mi Entrenador Personal
+# 🏋️‍♂️ FitActive - Mi Entrenador Personal
 
-¡Bienvenido a **KeasyFit Portal**! Esta es una aplicación web interactiva de alto rendimiento diseñada específicamente para **Rafael Carcel**. Permite realizar un seguimiento diario de entrenamiento, monitorizar el peso corporal con gráficos InBody motivadores, registrar cargas progresivas y recibir alertas de entreno.
+¡Bienvenido a **FitActive**! Esta es una aplicación web interactiva de alto rendimiento diseñada específicamente para **Rafael Carcel**. Permite realizar un seguimiento diario de entrenamiento, monitorizar el peso corporal con gráficos InBody motivadores, registrar cargas progresivas y recibir alertas de entreno.
 
 El diseño está optimizado tanto para ordenadores como para **móviles**, permitiéndote llevar el control directamente desde tu teléfono mientras estás en el gimnasio.
 
@@ -45,12 +45,12 @@ Sigue estos pasos para subir tu portal a GitHub y desplegarlo de forma gratuita 
    ```bash
    git init
    git add .
-   git commit -m "Commit inicial: KeasyFit Portal"
+   git commit -m "Commit inicial: FitActive"
    ```
-3. Ve a [GitHub](https://github.com), crea un nuevo repositorio vacío llamado `KeasyFit-Portal` (déjalo público o privado).
+3. Ve a [GitHub](https://github.com), crea un nuevo repositorio vacío llamado `FitActive` (déjalo público o privado).
 4. Vincula tu repositorio local con GitHub y sube los archivos (reemplaza `<TU_USUARIO>` con tu nombre de usuario de GitHub):
    ```bash
-   git remote add origin https://github.com/<TU_USUARIO>/KeasyFit-Portal.git
+   git remote add origin https://github.com/<TU_USUARIO>/FitActive.git
    git branch -M main
    git push -u origin main
    ```
@@ -58,10 +58,10 @@ Sigue estos pasos para subir tu portal a GitHub y desplegarlo de forma gratuita 
 ### Paso 2: Desplegar en Vercel (Gratis)
 1. Crea una cuenta gratuita en [Vercel](https://vercel.com) iniciando sesión con tu cuenta de GitHub.
 2. Haz clic en **"Add New..."** y luego en **"Project"**.
-3. Vercel te mostrará tu lista de repositorios de GitHub. Busca `KeasyFit-Portal` y haz clic en **"Import"**.
+3. Vercel te mostrará tu lista de repositorios de GitHub. Busca `FitActive` y haz clic en **"Import"**.
 4. En la configuración del proyecto, Vercel detectará automáticamente que es un proyecto HTML/CSS/JS estático. **No necesitas tocar ninguna configuración de compilación (Build & Development Settings)**.
 5. Haz clic en **"Deploy"**.
-6. En unos 10 segundos, Vercel te dará una URL pública del tipo `https://keasyfit-portal.vercel.app`. ¡Ábrela en tu móvil y añádela a la pantalla de inicio!
+6. En unos 10 segundos, Vercel te dará una URL pública del tipo `https://fitactive.vercel.app`. ¡Ábrela en tu móvil y añádela a la pantalla de inicio!
 
 ---
 

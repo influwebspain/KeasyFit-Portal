@@ -1,4 +1,4 @@
-// Datos Iniciales de la Rutina y Asistencias de KeasyFit
+// Datos Iniciales de la Rutina y Asistencias de FitActive
 
 // Versión del plan de entrenamiento. Al subirla, la app sustituye las rutinas
 // antiguas (local y Firebase) por las de este archivo.
@@ -269,12 +269,12 @@ const MUSCLE_HIGHLIGHTS_SVG = {
     <svg viewBox="0 0 200 400" class="muscle-svg">
       <defs>
         <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#ccff00" stop-opacity="0.8"/>
-          <stop offset="100%" stop-color="#ff5a00" stop-opacity="0.8"/>
+          <stop offset="0%" stop-color="#10b981" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#0369a1" stop-opacity="0.9"/>
         </linearGradient>
       </defs>
       <!-- Base Cuerpo Humano Simplificado -->
-      <g fill="#1d202b" stroke="#373e51" stroke-width="1.5">
+      <g fill="#e7ecf3" stroke="#c3ccd9" stroke-width="1.5">
         <!-- Cabeza -->
         <circle cx="100" cy="40" r="18" />
         <!-- Cuello -->
@@ -315,7 +315,7 @@ const MUSCLE_HIGHLIGHTS_SVG = {
   back: `
     <svg viewBox="0 0 200 400" class="muscle-svg">
       <!-- Base Cuerpo Humano Simplificado Vista Trasera -->
-      <g fill="#1d202b" stroke="#373e51" stroke-width="1.5">
+      <g fill="#e7ecf3" stroke="#c3ccd9" stroke-width="1.5">
         <!-- Cabeza -->
         <circle cx="100" cy="40" r="18" />
         <!-- Cuello -->

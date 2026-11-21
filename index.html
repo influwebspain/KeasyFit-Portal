@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KeasyFit Portal - Mi Entrenador Personal</title>
+  <title>FitActive - Mi Entrenador Personal</title>
   
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#08090c">
+  <meta name="theme-color" content="#f4f6fa">
   <link rel="apple-touch-icon" href="icon-512.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,8 +15,8 @@
   <!-- Google Fonts: preconectar para cargar antes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap"></noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"></noscript>
 
   <!-- Estilos -->
   <link rel="stylesheet" href="css/style.css">
@@ -35,7 +35,7 @@
     <!-- BARRA LATERAL (SIDEBAR) -->
     <aside class="sidebar">
       <div class="brand">
-        <h1 class="brand-title">Keasy<span>Fit</span></h1>
+        <h1 class="brand-title">Fit<span>Active</span></h1>
         <div class="brand-subtitle">We Are The Fitness</div>
       </div>
       
@@ -115,8 +115,8 @@
     <main class="main-content">
       
       <!-- BARRA INSTALAR PWA -->
-      <div id="pwa-install-banner" class="alert-bar" style="display: none; background: rgba(204, 255, 0, 0.1); border-color: var(--primary);">
-        <span class="alert-bar-text" style="color: var(--text-light);">📲 <strong>Instala KeasyFit</strong> para usarla offline en el gimnasio.</span>
+      <div id="pwa-install-banner" class="alert-bar" style="display: none; background: rgba(5, 150, 105, 0.07); border-color: var(--primary);">
+        <span class="alert-bar-text">📲 <strong>Instala FitActive</strong> para usarla offline en el gimnasio.</span>
         <button id="btn-install-pwa" class="btn btn-primary btn-sm">Instalar</button>
       </div>
 
@@ -222,7 +222,7 @@
         <div id="workout-focus-area" style="display: none;">
           <div class="card" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.8rem;">
             <div>
-              <span id="active-routine-name" style="font-family: 'Orbitron', sans-serif; font-weight: 700; color: var(--primary);">DÍA 1: ESPALDA Y BÍCEPS</span>
+              <span id="active-routine-name" style="font-weight: 700; color: var(--primary);">DÍA 1: ESPALDA Y BÍCEPS</span>
             </div>
             <button class="btn btn-secondary btn-sm" onclick="abortWorkout()">
               Abortar Sesión
@@ -253,7 +253,7 @@
               <div class="player-logger">
                 <div class="logger-title">
                   <span>Introduce los pesos logrados:</span>
-                  <span style="color:var(--accent);" id="exercise-target-reps">Meta: 4x15</span>
+                  <span style="color:var(--accent);" id="exercise-target-reps">Meta</span>
                 </div>
                 
                 <div class="logger-grid" id="active-sets-grid">
@@ -281,7 +281,7 @@
 
             <!-- Ilustraciones Musculares e Instrucciones -->
             <div class="card illustration-card">
-              <h4 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:0.9rem; letter-spacing:1px; color:var(--text-muted);">Grupos musculares activos</h4>
+              <h4 style="text-transform:uppercase; font-size:0.9rem; letter-spacing:1px; color:var(--text-muted);">Grupos musculares activos</h4>
               
               <!-- Diagramas SVG -->
               <div class="muscle-diagrams-container">
@@ -323,7 +323,7 @@
         <div class="metrics-layout">
           <!-- Formulario e Historial -->
           <div class="card metrics-form-card">
-            <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; margin-bottom:1.5rem; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="text-transform:uppercase; font-size:1.1rem; margin-bottom:1.5rem; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
               <span>Nuevo Registro</span>
             </h3>
 
@@ -336,12 +336,12 @@
             </div>
 
             <!-- Indicador de Progreso del Escaneo (Oculto por defecto) -->
-            <div id="ocr-progress-container" style="display: none; margin-bottom: 1.5rem; background: rgba(0, 240, 255, 0.03); border: 1px solid rgba(0, 240, 255, 0.15); padding: 0.8rem 1rem; border-radius: 12px; animation: pulseCyan 2s infinite alternate;">
+            <div id="ocr-progress-container" style="display: none; margin-bottom: 1.5rem; background: rgba(3, 105, 161, 0.05); border: 1px solid rgba(3, 105, 161, 0.20); padding: 0.8rem 1rem; border-radius: 12px; animation: pulseCyan 2s infinite alternate;">
               <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:0.4rem;">
                 <span id="ocr-progress-status" style="color:var(--accent); font-weight:600;">Inicializando escáner...</span>
-                <span id="ocr-progress-percent" style="font-family:'Orbitron',sans-serif; font-weight:700;">0%</span>
+                <span id="ocr-progress-percent" style="font-weight:700;">0%</span>
               </div>
-              <div style="width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+              <div style="width:100%; height:4px; background:rgba(15,23,42,0.08); border-radius:2px; overflow:hidden;">
                 <div id="ocr-progress-bar-fill" style="width:0%; height:100%; background:var(--accent); transition:width 0.2s ease;"></div>
               </div>
             </div>
@@ -394,7 +394,7 @@
           <!-- Gráfico Variable -->
           <div class="card chart-card" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div class="chart-header">
-              <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; color:var(--accent);">Gráfico Evolutivo</h3>
+              <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--accent);">Gráfico Evolutivo</h3>
               <select id="metrics-chart-select" class="chart-select" onchange="renderMetricsPanel()">
                 <option value="weight">Peso Corporal (kg)</option>
                 <option value="fat">Porcentaje de Grasa (%)</option>
@@ -446,7 +446,7 @@
         <!-- Cuadro General de Fuerza y Progresos del Gimnasio -->
         <div class="card reports-full-width-card">
           <div class="chart-header">
-            <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; color:var(--primary);">Cuadro General de Fuerza y Cargas</h3>
+            <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--primary);">Cuadro General de Fuerza y Cargas</h3>
             <span style="font-size: 0.85rem; color: var(--text-muted);">Progreso consolidado de todos los ejercicios de tu rutina activa</span>
           </div>
           <div class="general-report-table-wrapper">
@@ -472,7 +472,7 @@
         <!-- Tabla comparativa InBody en el reporte unificado (visible al imprimir o consultar informes) -->
         <div class="card" style="margin-bottom: 1.5rem; page-break-inside: avoid;">
           <div class="chart-header">
-            <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; color:var(--accent);">Evolución de Composición Corporal</h3>
+            <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--accent);">Evolución de Composición Corporal</h3>
             <span style="font-size: 0.85rem; color: var(--text-muted);">Historial de peso y variaciones InBody</span>
           </div>
           <div class="comparison-table-wrapper" id="reports-inbody-comparison-container">
@@ -486,7 +486,7 @@
             <!-- Gráfico de Fuerza por Ejercicio -->
             <div class="card chart-card">
               <div class="chart-header">
-                <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; color:var(--primary);">Gráfico de Fuerza Individual</h3>
+                <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--primary);">Gráfico de Fuerza Individual</h3>
                 <select id="report-exercise-select" class="chart-select">
                   <!-- Inyectado dinámicamente -->
                 </select>
@@ -499,7 +499,7 @@
             <!-- Gráfico de Volumen levantado semanal -->
             <div class="card chart-card">
               <div class="chart-header">
-                <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; color:var(--secondary);">Tonelaje Semanal</h3>
+                <h3 style="text-transform:uppercase; font-size:1.1rem; color:var(--secondary);">Tonelaje Semanal</h3>
                 <span style="font-size: 0.85rem; color: var(--text-muted);">Suma total de kg (Series x Reps x Peso)</span>
               </div>
               <div style="position: relative; height: 300px;">
@@ -510,7 +510,7 @@
 
           <!-- Tarjeta de Resumen y Recomendaciones Generales -->
           <div class="card" style="height: fit-content;">
-            <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; margin-bottom:1.5rem; color:var(--accent);">Conceptos Básicos</h3>
+            <h3 style="text-transform:uppercase; font-size:1.1rem; margin-bottom:1.5rem; color:var(--accent);">Conceptos Básicos</h3>
             <ul style="list-style: none; display: flex; flex-direction: column; gap: 1.2rem; font-size: 0.85rem; line-height: 1.6;">
               <li style="border-bottom:1px solid var(--border-color); padding-bottom: 0.8rem;">
                 <strong style="color: var(--primary);">Alternar Músculos:</strong> Nunca repitas dos ejercicios seguidos del mismo músculo para que pueda descansar.
@@ -611,7 +611,7 @@
         <div class="settings-grid">
           <!-- Configuración de Horarios e Alertas -->
           <div class="card">
-            <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; margin-bottom:1.5rem; color:var(--primary);">Planificador de Alertas</h3>
+            <h3 style="text-transform:uppercase; font-size:1.1rem; margin-bottom:1.5rem; color:var(--primary);">Planificador de Alertas</h3>
             
             <form id="settings-form">
               <div class="form-group">
@@ -682,12 +682,12 @@
           </div>
 
           <!-- Mantenimiento de Datos -->
-          <div class="card" style="height: fit-content; border-color: rgba(255, 59, 48, 0.2);">
-            <h3 style="font-family:'Orbitron',sans-serif; text-transform:uppercase; font-size:1.1rem; margin-bottom:1rem; color:#ff3b30;">Zona de Peligro</h3>
+          <div class="card" style="height: fit-content; border-color: rgba(185, 28, 28, 0.25);">
+            <h3 style="text-transform:uppercase; font-size:1.1rem; margin-bottom:1rem; color:var(--danger);">Zona de Peligro</h3>
             <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5; margin-bottom:1.5rem;">
               Las siguientes acciones borrarán de forma irreversible los datos guardados en este navegador web local.
             </p>
-            <button class="btn btn-secondary" onclick="resetAllApplicationData()" style="background:#ff3b30; border-color:#ff3b30; color:#fff; width:100%;">
+            <button class="btn btn-secondary" onclick="resetAllApplicationData()" style="background:var(--danger); border-color:var(--danger); color:#fff; width:100%;">
               Restablecer Datos de Fábrica
             </button>
           </div>
@@ -709,10 +709,10 @@
         <div class="timer-number" id="timer-number">60</div>
       </div>
       <div class="mini-timer-ring-container">
-        <!-- Círculo estético neón -->
+        <!-- Círculo estético de cuenta atrás -->
         <svg width="40" height="40" style="transform: rotate(-90deg);">
-          <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>
-          <circle cx="20" cy="20" r="16" fill="none" stroke="var(--primary)" stroke-width="4" stroke-dasharray="100" stroke-dashoffset="0" id="timer-ring-circle" style="filter: drop-shadow(0 0 4px var(--primary-glow));"/>
+          <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="4"/>
+          <circle cx="20" cy="20" r="16" fill="none" stroke="var(--primary-solid)" stroke-width="4" stroke-dasharray="100" stroke-dashoffset="0" id="timer-ring-circle"/>
         </svg>
       </div>
       <button class="btn-icon btn-skip-timer" onclick="skipRestTimer()">

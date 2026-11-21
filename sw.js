@@ -1,5 +1,5 @@
-// KeasyFit Service Worker — Cache Offline-First
-const CACHE_NAME = 'keasyfit-v4';
+// FitActive Service Worker — Cache Offline-First
+const CACHE_NAME = 'fitactive-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
