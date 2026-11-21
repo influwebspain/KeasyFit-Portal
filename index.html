@@ -106,6 +106,12 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main-content">
       
+      <!-- AVISO DE VERSIÓN NUEVA (lo muestra el service worker al actualizarse) -->
+      <div id="update-bar" class="alert-bar" style="display: none;">
+        <span class="alert-bar-text">🔄 Hay una <strong>versión nueva</strong> de FitActive.</span>
+        <button class="btn btn-accent btn-sm" onclick="location.reload()">Recargar</button>
+      </div>
+
       <!-- BARRA INSTALAR PWA -->
       <div id="pwa-install-banner" class="alert-bar" style="display: none; background: rgba(5, 150, 105, 0.07); border-color: var(--primary);">
         <span class="alert-bar-text">📲 <strong>Instala FitActive</strong> para usarla offline en el gimnasio.</span>
@@ -136,8 +142,9 @@
               <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
             </div>
             <div class="widget-info">
-              <span class="widget-label">Racha Activa</span>
-              <span class="widget-value" id="widget-streak">0 Días</span>
+              <span class="widget-label">Racha semanal</span>
+              <span class="widget-value" id="widget-streak">0 semanas</span>
+              <span id="widget-streak-sub" style="font-size: 0.8rem; color: var(--text-muted);">Esta semana: 0/3 días</span>
             </div>
           </div>
           
@@ -309,6 +316,27 @@
           <div>
             <h2 class="page-title">Métricas de <span>Composición Corporal</span></h2>
             <p class="page-subtitle">Registra tu historial InBody / Báscula Inteligente para monitorizar tu progreso.</p>
+          </div>
+        </div>
+
+        <!-- Objetivo semanal de cardio (incluye caminar y cardio libre) -->
+        <div class="card cardio-goal-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="report-card-title">Cardio de la semana</h3>
+              <span class="report-card-sub">Orientativo: unos 150 min/semana. Ajústalo si tu equipo médico indica otra cosa.</span>
+            </div>
+            <span id="cardio-week-value" class="cardio-week-value">0 / 150 min</span>
+          </div>
+          <div class="cardio-bar"><div id="cardio-bar-fill" class="cardio-bar-fill"></div></div>
+          <div class="cardio-actions">
+            <label>Añadir cardio libre (min)
+              <input type="number" id="input-extra-cardio" class="form-control-full" min="1" max="300" placeholder="Ej: 30">
+            </label>
+            <button type="button" class="btn btn-secondary" onclick="addExtraCardioFromInput()">Añadir</button>
+            <label>Objetivo semanal (min)
+              <input type="number" id="input-cardio-goal" class="form-control-full" min="0" max="600" onchange="saveCardioGoal(this.value)">
+            </label>
           </div>
         </div>
 
@@ -569,6 +597,8 @@
           </div>
         </div>
 
+        <p id="sync-status" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Comprobando sincronización…</p>
+
         <div class="settings-grid">
           <!-- Configuración de Horarios e Alertas -->
           <div class="card">
@@ -612,6 +642,10 @@
               <div class="form-group" style="margin-top: 1.5rem;">
                 <label class="form-label" for="input-user-height">Tu Altura (cm)</label>
                 <input type="number" id="input-user-height" class="form-control-full" style="width: 150px;" placeholder="Ej: 174">
+              </div>
+              <div class="form-group" style="margin-top: 1.5rem;">
+                <label class="form-label" for="input-user-age">Tu Edad (años)</label>
+                <input type="number" id="input-user-age" class="form-control-full" style="width: 150px;" min="10" max="100" placeholder="Ej: 32">
               </div>
 
               <div class="form-group" style="margin-top: 1.5rem;">
@@ -703,6 +737,12 @@
 
     // Registrar Service Worker para PWA
     if ('serviceWorker' in navigator) {
+      // Si ya había un service worker controlando la página, un cambio de control
+      // significa que hay versión nueva (la primera instalación no avisa)
+      const hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController) document.getElementById('update-bar').style.display = 'flex';
+      });
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
           .then(registration => {

@@ -102,9 +102,8 @@ function loadStateFromLocalStorage() {
     state.weightHistory = savedWeight;
     
     // Limpieza automática de datos ficticios previos
-    const fakeDates = ["2026-04-27", "2026-05-11", "2026-05-25", "2026-06-08", "2026-06-22"];
     const originalLength = state.weightHistory.length;
-    state.weightHistory = state.weightHistory.filter(w => !fakeDates.includes(w.date));
+    state.weightHistory = state.weightHistory.filter(w => !FAKE_WEIGHT_DATES.includes(w.date));
     
     if (state.weightHistory.length !== originalLength) {
       saveLocalStorageOnly('weight');
@@ -119,6 +118,13 @@ function loadStateFromLocalStorage() {
     state.settings = savedSettings;
   }
 
+  // Inicio del plan actual (base de las semanas de progresión): primer entrenamiento registrado
+  if (!state.settings.planStartDate) {
+    const firstLog = state.history.map(h => (h.date || '').slice(0, 10)).filter(Boolean).sort()[0];
+    state.settings.planStartDate = firstLog || getLocalDateString();
+    saveLocalStorageOnly('settings');
+  }
+
   // Migración del plan de entrenamiento: al cambiar ROUTINES_VERSION se
   // sustituyen las rutinas guardadas (local y, después, en Firebase).
   if (state.settings.routinesVersion !== ROUTINES_VERSION) {
@@ -129,139 +135,204 @@ function loadStateFromLocalStorage() {
   }
 }
 
-// Guardar solo en localStorage (sin red, para la carga inicial rápida)
+// Guardar solo en localStorage (sin red, para la carga inicial rápida).
+// Las series de un entrenamiento en curso (_sessionPending) no se persisten
+// hasta terminarlo, para que abortar o recargar no deje datos a medias.
 function saveLocalStorageOnly(key) {
   if (key === 'routines' || !key) localStorage.setItem('kf_routines', JSON.stringify(state.routines));
-  if (key === 'history' || !key) localStorage.setItem('kf_history', JSON.stringify(state.history));
+  if (key === 'history' || !key) localStorage.setItem('kf_history', JSON.stringify(state.history.filter(l => !l._sessionPending)));
   if (key === 'weight' || !key) localStorage.setItem('kf_weight', JSON.stringify(state.weightHistory));
   if (key === 'settings' || !key) localStorage.setItem('kf_settings', JSON.stringify(state.settings));
+}
+
+// ==========================================
+// SINCRONIZACIÓN CON FIREBASE (fusión, nunca sobrescritura)
+// ==========================================
+
+// Registros de báscula ficticios de versiones antiguas: se descartan siempre
+const FAKE_WEIGHT_DATES = ["2026-04-27", "2026-05-11", "2026-05-25", "2026-06-08", "2026-06-22"];
+
+// Identidad de una serie registrada: la misma serie en dos dispositivos
+// produce la misma clave, así que la unión no duplica nada.
+function historyLogKey(log) {
+  return [log.sessionId || '', (log.date || '').slice(0, 10), log.routineId || '', log.exerciseId || '', log.setIndex || ''].join('|');
+}
+
+// Une dos historiales de entrenamiento sin perder sesiones de ninguno
+function mergeHistory(primary, secondary) {
+  const byKey = new Map();
+  [...(secondary || []), ...(primary || [])].forEach(log => {
+    if (!log || log._sessionPending) return;
+    byKey.set(historyLogKey(log), log);
+  });
+  return [...byKey.values()].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+}
+
+// Une dos historiales de báscula por fecha; en conflicto gana `primary`
+function mergeWeightHistory(primary, secondary) {
+  const byDate = new Map();
+  [...(secondary || []), ...(primary || [])].forEach(rec => {
+    if (!rec || !rec.date || FAKE_WEIGHT_DATES.includes(rec.date)) return;
+    byDate.set(rec.date, rec);
+  });
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Estado de la sincronización, visible en Ajustes
+let syncStatus = 'checking';
+
+function setSyncStatus(status) {
+  syncStatus = status;
+  try { renderAccountPanel(); } catch (e) {}
+}
+
+function handleSyncError(error, context) {
+  console.error(`Error de sincronización (${context}):`, error);
+  setSyncStatus(error && error.code === 'permission-denied' ? 'needs-login' : 'error');
+}
+
+// Espera a que Firebase (y el estado de la sesión de Google) estén listos
+async function waitForFirebase() {
+  let retries = 0;
+  while (!window.firebaseDb && retries < 30) {
+    await new Promise(r => setTimeout(r, 100));
+    retries++;
+  }
+  if (!window.firebaseDb) return false;
+  if (window.firebaseAuthReady) {
+    // Sin red, la sesión puede tardar: no bloquear más de 4 s
+    await Promise.race([window.firebaseAuthReady, new Promise(r => setTimeout(r, 4000))]);
+  }
+  return true;
+}
+
+function getCloudDocRef() {
+  return window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
 }
 
 // SINCRONIZACIÓN EN SEGUNDO PLANO: Descarga datos de Firebase sin bloquear UI
 async function syncFromFirebaseInBackground() {
   try {
-    // Esperar a que Firebase esté listo (máximo 3 segundos, NO bloqueante)
-    let retries = 0;
-    while (!window.firebaseDb && retries < 30) {
-      await new Promise(r => setTimeout(r, 100));
-      retries++;
-    }
-
-    if (!window.firebaseDb) {
+    if (!(await waitForFirebase())) {
       console.log('Firebase no disponible, usando solo datos locales.');
+      setSyncStatus('offline');
       return;
     }
 
-    const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
+    const docRef = getCloudDocRef();
     const docSnap = await window.firebaseGetDoc(docRef);
-    
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      let needsRefresh = false;
-      const cloudVersion = (data.settings && data.settings.routinesVersion) || 0;
-      const localVersion = state.settings.routinesVersion || 0;
 
-      // Rutinas: gana el plan de versión más alta. Si el local es más nuevo
-      // (p. ej. tras una actualización del plan), se sube a la nube.
-      if (cloudVersion > localVersion) {
-        if (data.routines && data.routines.length > 0) {
-          state.routines = data.routines;
-          localStorage.setItem('kf_routines', JSON.stringify(state.routines));
-          needsRefresh = true;
-        }
-        if (data.settings) {
-          // Adoptar el plan de la nube, pero conservar las preferencias locales
-          // (sonido, alertas, altura son propias de cada dispositivo) y fijar la
-          // versión de la nube para no volver a subir el plan antiguo.
-          state.settings = Object.assign({}, data.settings, state.settings, {
-            routinesVersion: cloudVersion
-          });
-          localStorage.setItem('kf_settings', JSON.stringify(state.settings));
-        }
-      } else if (cloudVersion < localVersion) {
-        // El plan local es más nuevo: subir SOLO rutinas y configuración.
-        // Nunca se envía el historial aquí, para no sobrescribir en la nube con
-        // un historial local vacío (móvil nuevo, datos borrados, etc.).
-        await pushRoutinesToCloud();
-      } else if (data.settings) {
-        // Misma versión: conservar preferencias locales (sonido, alertas, altura)
-        state.settings = Object.assign({}, data.settings, state.settings);
-        localStorage.setItem('kf_settings', JSON.stringify(state.settings));
-      }
-
-      if (data.history && data.history.length > state.history.length) {
-        state.history = data.history;
-        localStorage.setItem('kf_history', JSON.stringify(state.history));
-        needsRefresh = true;
-      }
-
-      if (data.weight && data.weight.length > state.weightHistory.length) {
-        state.weightHistory = data.weight;
-        localStorage.setItem('kf_weight', JSON.stringify(state.weightHistory));
-        needsRefresh = true;
-      }
-
-      // Si hubo cambios desde Firebase, re-renderizar las vistas silenciosamente
-      if (needsRefresh) {
-        console.log('Datos actualizados desde Firebase en segundo plano.');
-        try { renderWorkoutsList(); } catch(e) {}
-        try { updateDashboard(); } catch(e) {}
-      }
-    } else {
-      // Primera vez: no existe documento en la nube → publicar el plan actual
-      await pushRoutinesToCloud();
+    if (!docSnap.exists()) {
+      // Primera vez: no existe documento en la nube → publicar todo lo local
+      await saveStateToStorage();
+      return;
     }
-  } catch (error) {
-    console.error('Error sincronizando Firebase en segundo plano:', error);
-  }
-}
 
-// Sube únicamente el plan de rutinas y la configuración activa a Firebase.
-// Se usa al detectar que el plan local es más reciente que el de la nube;
-// deliberadamente NO toca history ni weight para no perder progreso registrado.
-async function pushRoutinesToCloud() {
-  if (!window.firebaseDb) return;
-  try {
-    const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
-    await window.firebaseSetDoc(docRef, {
-      routines: state.routines,
-      settings: state.settings
-    }, { merge: true });
-    console.log('Plan de rutinas actualizado en Firebase.');
-  } catch (error) {
-    console.error("Error subiendo el plan de rutinas a Firebase:", error);
-  }
-}
+    const data = docSnap.data();
+    let needsRefresh = false;
+    const cloudVersion = (data.settings && data.settings.routinesVersion) || 0;
+    const localVersion = state.settings.routinesVersion || 0;
 
-// Guardado de datos asíncrono
-async function saveStateToStorage(key) {
-  // Guardar en localStorage como backup offline
-  if (key === 'routines' || !key) {
-    localStorage.setItem('kf_routines', JSON.stringify(state.routines));
-  }
-  if (key === 'history' || !key) {
-    localStorage.setItem('kf_history', JSON.stringify(state.history));
-  }
-  if (key === 'weight' || !key) {
-    localStorage.setItem('kf_weight', JSON.stringify(state.weightHistory));
-  }
-  if (key === 'settings' || !key) {
-    localStorage.setItem('kf_settings', JSON.stringify(state.settings));
-  }
+    // Rutinas: gana el plan de versión más alta. Si el local es más nuevo
+    // (p. ej. tras una actualización del plan), se sube a la nube.
+    if (cloudVersion > localVersion) {
+      if (data.routines && data.routines.length > 0) {
+        state.routines = data.routines;
+        saveLocalStorageOnly('routines');
+        needsRefresh = true;
+      }
+      if (data.settings) {
+        // Adoptar el plan de la nube, pero conservar las preferencias locales
+        // (sonido, alertas, altura son propias de cada dispositivo) y fijar la
+        // versión de la nube para no volver a subir el plan antiguo.
+        state.settings = Object.assign({}, data.settings, state.settings, {
+          routinesVersion: cloudVersion
+        });
+        saveLocalStorageOnly('settings');
+      }
+    } else if (data.settings) {
+      // Misma versión o local más nueva: conservar preferencias locales
+      state.settings = Object.assign({}, data.settings, state.settings);
+      saveLocalStorageOnly('settings');
+    }
 
-  // Guardar en Firebase
-  try {
-    if (window.firebaseDb) {
-      const docRef = window.firebaseDoc(window.firebaseDb, "users", "defaultUser");
+    if (data.settings && data.settings.planStartDate &&
+        (!state.settings.planStartDate || data.settings.planStartDate < state.settings.planStartDate)) {
+      state.settings.planStartDate = data.settings.planStartDate;
+      saveLocalStorageOnly('settings');
+    }
+
+    // Historial y báscula: unión de nube + dispositivo (nunca "gana el más largo")
+    const pending = state.history.filter(l => l._sessionPending);
+    const localHistory = state.history.filter(l => !l._sessionPending);
+    const mergedHistory = mergeHistory(localHistory, data.history);
+    const mergedWeight = mergeWeightHistory(state.weightHistory, data.weight);
+
+    if (mergedHistory.length !== localHistory.length) needsRefresh = true;
+    if (JSON.stringify(mergedWeight) !== JSON.stringify(state.weightHistory)) needsRefresh = true;
+
+    state.history = mergedHistory.concat(pending);
+    state.weightHistory = mergedWeight;
+    saveLocalStorageOnly('history');
+    saveLocalStorageOnly('weight');
+
+    // Si este dispositivo tenía algo que la nube no, subirlo
+    const cloudMissingData =
+      mergedHistory.length !== (data.history || []).length ||
+      mergedWeight.length !== (data.weight || []).length ||
+      cloudVersion < localVersion;
+    if (cloudMissingData) {
       await window.firebaseSetDoc(docRef, {
         routines: state.routines,
-        history: state.history,
-        weight: state.weightHistory,
+        history: mergedHistory,
+        weight: mergedWeight,
         settings: state.settings
       }, { merge: true });
     }
+
+    setSyncStatus('synced');
+
+    // Si hubo cambios desde Firebase, re-renderizar las vistas silenciosamente
+    if (needsRefresh) {
+      console.log('Datos actualizados desde Firebase en segundo plano.');
+      try { renderWorkoutsList(); } catch(e) {}
+      try { updateDashboard(); } catch(e) {}
+      try { if (state.activeTab !== 'dashboard' && state.activeTab !== 'workouts') switchTab(state.activeTab); } catch(e) {}
+    }
   } catch (error) {
-    console.error("Error guardando datos en Firebase:", error);
+    handleSyncError(error, 'descarga');
+  }
+}
+
+// Guardado de datos: local inmediato y, en la nube, fusionando con lo que ya
+// haya allí (otro dispositivo puede haber guardado sesiones mientras tanto).
+async function saveStateToStorage(key) {
+  saveLocalStorageOnly(key);
+
+  try {
+    if (!window.firebaseDb) return;
+    const docRef = getCloudDocRef();
+    const snap = await window.firebaseGetDoc(docRef);
+    const cloud = snap.exists() ? snap.data() : {};
+
+    const pending = state.history.filter(l => l._sessionPending);
+    const history = mergeHistory(state.history, cloud.history);
+    const weight = mergeWeightHistory(state.weightHistory, cloud.weight);
+
+    state.history = history.concat(pending);
+    state.weightHistory = weight;
+    saveLocalStorageOnly('history');
+    saveLocalStorageOnly('weight');
+
+    await window.firebaseSetDoc(docRef, {
+      routines: state.routines,
+      history,
+      weight,
+      settings: state.settings
+    }, { merge: true });
+    setSyncStatus('synced');
+  } catch (error) {
+    handleSyncError(error, 'guardado');
   }
 }
 
@@ -419,7 +490,8 @@ function setupEventListeners() {
 function updateDashboard() {
   // 1. Racha de entrenamientos (workouts en días seguidos)
   const streak = calculateWorkoutStreak();
-  document.getElementById('widget-streak').textContent = `${streak} Días`;
+  document.getElementById('widget-streak').textContent = `${streak.weeks} ${streak.weeks === 1 ? 'semana' : 'semanas'}`;
+  document.getElementById('widget-streak-sub').textContent = `Esta semana: ${streak.thisWeekDays}/${streak.target} días`;
 
   // 2. Entrenamientos completados totales
   const totalCompleted = calculateTotalWorkouts();
@@ -451,44 +523,45 @@ function updateDashboard() {
   setupNextWorkoutCard();
 }
 
-function calculateWorkoutStreak() {
-  if (state.history.length === 0) return 0;
-  
-  // Obtener fechas de entrenamiento únicas ordenadas
-  const dates = [...new Set(state.history.map(h => h.date))].sort((a,b) => new Date(b) - new Date(a));
-  
-  let streak = 0;
-  let today = new Date();
-  today.setHours(0,0,0,0);
-  
-  let currentCheck = today;
-  
-  // Si no entrenó hoy ni ayer, racha es 0
-  const latestWorkoutDate = new Date(dates[0]);
-  latestWorkoutDate.setHours(0,0,0,0);
-  const diffTime = Math.abs(today - latestWorkoutDate);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays > 1 && dates.length > 0) {
-    return 0;
-  }
+// Clave "AAAA-MM-DD" del lunes de la semana de una fecha
+function getWeekStartKey(dateStr) {
+  const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+  return getLocalDateString(dt);
+}
 
-  for (let i = 0; i < dates.length; i++) {
-    const workoutDate = new Date(dates[i]);
-    workoutDate.setHours(0,0,0,0);
-    
-    const diff = Math.abs(currentCheck - workoutDate);
-    const diffD = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (diffD <= 1) {
-      streak++;
-      currentCheck = workoutDate;
-    } else {
-      break;
-    }
+function shiftWeekKey(weekKey, weeks) {
+  const [y, m, d] = weekKey.split('-').map(Number);
+  return getLocalDateString(new Date(y, m - 1, d + 7 * weeks));
+}
+
+// Racha en semanas: cuenta semanas seguidas en las que cumpliste tus días de
+// entrenamiento (Ajustes). La semana en curso no rompe la racha hasta que acabe.
+function calculateWorkoutStreak() {
+  const target = Math.max(1, (state.settings.scheduleDays || []).length);
+  const perWeek = {};
+  new Set(state.history.filter(h => !isExtraCardio(h)).map(h => (h.date || '').slice(0, 10)).filter(Boolean)).forEach(day => {
+    const key = getWeekStartKey(day);
+    perWeek[key] = (perWeek[key] || 0) + 1;
+  });
+
+  const thisWeek = getWeekStartKey(getLocalDateString());
+  const thisWeekDays = perWeek[thisWeek] || 0;
+  let cursor = thisWeekDays >= target ? thisWeek : shiftWeekKey(thisWeek, -1);
+  let weeks = 0;
+  while ((perWeek[cursor] || 0) >= target) {
+    weeks++;
+    cursor = shiftWeekKey(cursor, -1);
   }
-  
-  return streak;
+  return { weeks, thisWeekDays, target };
+}
+
+// Semanas completas desde el inicio del plan actual (para pasar a 3 series)
+function weeksSincePlanStart() {
+  const start = state.settings.planStartDate || getLocalDateString();
+  const days = (Date.parse(getLocalDateString()) - Date.parse(start)) / 86400000;
+  return Math.max(0, Math.floor(days / 7));
 }
 
 function calculateTotalWorkouts() {
@@ -496,7 +569,7 @@ function calculateTotalWorkouts() {
   // mismo día (mismo routineId) cuentan como dos entrenamientos. Los registros
   // antiguos, sin sessionId, se agrupan por fecha + rutina como antes.
   const uniqueWorkouts = {};
-  state.history.forEach(log => {
+  state.history.filter(log => !isExtraCardio(log)).forEach(log => {
     const key = log.sessionId
       ? `s_${log.sessionId}`
       : `${log.date}_${log.routineId || 'default'}`;
@@ -563,9 +636,10 @@ function setupNextWorkoutCard() {
   // Si el último completado fue Día 1, toca el Día 2. Si fue el Día 2, toca el Día 3, etc.
   let nextRoutine = state.routines[0];
   
-  if (state.history.length > 0) {
+  const workoutLogs = state.history.filter(l => !isExtraCardio(l));
+  if (workoutLogs.length > 0) {
     // Buscar el último log
-    const lastLogs = [...state.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const lastLogs = [...workoutLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
     const lastRoutineId = lastLogs[0].routineId;
     const currentIndex = state.routines.findIndex(r => r.id === lastRoutineId);
     
@@ -651,6 +725,11 @@ function startWorkoutSession(routineId) {
     currentIndex: 0,
     logs: [] // almacena logs de cada ejercicio completado
   };
+
+  // Ejercicios principales: 3 series a partir de la semana 3 del plan (PDF)
+  if (weeksSincePlanStart() >= 2) {
+    state.currentWorkout.exercises.forEach(e => { if (e.maxSets) e.sets = e.maxSets; });
+  }
 
   // Cambiar a la vista de entrenar
   switchTab('workouts');
@@ -787,34 +866,13 @@ function renderActiveExercise() {
   }
 
   // Recomendación del Entrenador Personal e Historial
-  const lastLogInfo = getPreviousExerciseLog(exercise.id);
   const recommendationBox = document.getElementById('coach-recommendation');
-  
-  let suggestedWeight = calculateDynamicStartWeight(exercise.startWeight, exercise.muscle);
-  let coachMessage = "";
-
-  if (lastLogInfo) {
-    const lastWeight = lastLogInfo.weight;
-    const difficulty = lastLogInfo.difficulty;
-
-    if (difficulty === 'facil') {
-      // Progresión de carga cautelosa para principiantes
-      if (exercise.muscle === 'biceps' || exercise.muscle === 'shoulders') {
-        suggestedWeight = lastWeight + 1; // +1kg para mancuernas ligeras
-      } else {
-        suggestedWeight = lastWeight + 2.5; // +2.5kg para poleas/máquinas
-      }
-      coachMessage = `¡Excelente entrenamiento anterior! Sentiste los <strong>${lastWeight} kg</strong> muy ligeros. Te recomiendo subir un escalón a <strong>${suggestedWeight} kg</strong> hoy. Mantén el movimiento controlado.`;
-    } else if (difficulty === 'duro') {
-      suggestedWeight = Math.max(0, lastWeight - 2.5);
-      coachMessage = `El entrenamiento anterior con <strong>${lastWeight} kg</strong> estuvo al límite. Para cuidar tus articulaciones y asegurar una técnica perfecta, te aconsejo bajar a <strong>${suggestedWeight} kg</strong> hoy.`;
-    } else {
-      suggestedWeight = lastWeight;
-      coachMessage = `Buen ritmo. Los <strong>${lastWeight} kg</strong> del entreno anterior estuvieron adecuados. Mantén el mismo peso hoy para consolidar la técnica antes de subir.`;
-    }
-  } else {
-    coachMessage = `¡Bienvenido a este ejercicio! Como estamos empezando, te sugiero un peso de partida muy seguro y liviano: <strong>${suggestedWeight} kg</strong>. Concéntrate en la técnica lenta.`;
-  }
+  const recommendation = suggestNextLoad(exercise);
+  const suggestedWeight = recommendation.weight;
+  const suggestedReps = recommendation.reps;
+  const coachMessage = recommendation.message;
+  const unitW = exercise.muscle === 'cardio' ? (exercise.intensityUnit || 'nivel') : 'kg';
+  const unitR = exercise.muscle === 'cardio' ? 'min' : 'reps';
 
   recommendationBox.innerHTML = `
     <div class="coach-avatar">P</div>
@@ -837,11 +895,11 @@ function renderActiveExercise() {
       <div class="set-label">SERIE ${i}</div>
       <div class="set-input-group">
         <input type="number" class="form-input weight-input" data-set="${i}" value="${suggestedWeight}" step="0.5" min="0">
-        <span>kg</span>
+        <span>${unitW}</span>
       </div>
       <div class="set-input-group">
-        <input type="number" class="form-input reps-input" data-set="${i}" value="${parseInt(exercise.reps) || 10}" min="1">
-        <span>reps</span>
+        <input type="number" class="form-input reps-input" data-set="${i}" value="${suggestedReps}" min="1">
+        <span>${unitR}</span>
       </div>
     `;
     loggerGrid.appendChild(row);
@@ -976,10 +1034,104 @@ function selectDifficulty(diff) {
   document.querySelector(`.difficulty-btn[data-diff="${diff}"]`).classList.add('selected');
 }
 
-function getPreviousExerciseLog(exerciseId) {
-  // Buscar en el historial de forma inversa (más reciente primero)
-  const sortedHistory = [...state.history].sort((a,b) => new Date(b.date) - new Date(a.date));
-  return sortedHistory.find(log => log.exerciseId === exerciseId);
+// Rango de repeticiones del plan: "10-12" → {min: 10, max: 12}; "12" → {12, 12}
+function parseRepRange(reps) {
+  const nums = String(reps).match(/\d+/g);
+  if (!nums) return null;
+  return { min: Number(nums[0]), max: Number(nums[nums.length - 1]) };
+}
+
+// Series de la sesión más reciente de un ejercicio
+function getLastSessionLogs(exerciseId) {
+  const logs = state.history.filter(l => l.exerciseId === exerciseId && !l._sessionPending);
+  if (logs.length === 0) return [];
+  const latest = logs.reduce((a, b) => ((b.date || '') > (a.date || '') ? b : a));
+  return logs.filter(l => latest.sessionId
+    ? l.sessionId === latest.sessionId
+    : (l.date || '').slice(0, 10) === (latest.date || '').slice(0, 10));
+}
+
+// Cardio (bici/cinta): primero se sube la duración hasta 30 min y después la intensidad
+function suggestCardioLoad(ex, last) {
+  const unit = ex.intensityUnit || 'nivel';
+  const step = unit === 'km/h' ? 0.5 : 1;
+  const defaultMin = parseInt(ex.reps) || 10;
+
+  if (last.length === 0) {
+    return {
+      weight: ex.startWeight,
+      reps: defaultMin,
+      message: `Empieza con <strong>${defaultMin} min</strong> a <strong>${ex.startWeight} ${unit}</strong>, en un ritmo en el que puedas hablar en frases.`
+    };
+  }
+
+  const minutes = Math.max(...last.map(l => parseInt(l.reps) || 0));
+  const intensity = Math.max(...last.map(l => parseFloat(l.weight) || 0));
+
+  if (minutes < 30) {
+    const next = Math.min(30, minutes + 5);
+    return {
+      weight: intensity,
+      reps: next,
+      message: `Último: <strong>${minutes} min</strong> a ${intensity} ${unit}. Primero sube la duración: hoy <strong>${next} min</strong> a la misma intensidad.`
+    };
+  }
+
+  const newIntensity = Math.round((intensity + step) * 10) / 10;
+  return {
+    weight: newIntensity,
+    reps: 30,
+    message: `Ya llegas a 30 min cómodos. Puedes probar <strong>${newIntensity} ${unit}</strong> manteniendo los 30 min, sin HIIT.`
+  };
+}
+
+// Doble progresión: primero se suben las repeticiones dentro del rango del plan;
+// cuando se alcanza el tope en todas las series, se sube la carga.
+// Devuelve { weight, reps, message } para la siguiente sesión.
+function suggestNextLoad(ex) {
+  const last = getLastSessionLogs(ex.id);
+  if (ex.muscle === 'cardio') return suggestCardioLoad(ex, last);
+
+  const startWeight = calculateDynamicStartWeight(ex.startWeight, ex.muscle);
+  const range = parseRepRange(ex.reps) || { min: 10, max: 12 };
+
+  if (last.length === 0) {
+    return {
+      weight: startWeight,
+      reps: range.min,
+      message: `¡Primera vez con este ejercicio! Empieza con <strong>${startWeight} kg</strong> y busca <strong>${range.min} reps</strong> en todas las series. Técnica lenta.`
+    };
+  }
+
+  const lastWeight = Math.max(...last.map(l => parseFloat(l.weight) || 0));
+  const minReps = Math.min(...last.map(l => parseInt(l.reps) || 0));
+  const hardest = last.some(l => l.difficulty === 'duro');
+  const step = (ex.muscle === 'biceps' || ex.muscle === 'shoulders') ? 1 : 2.5;
+
+  if (minReps >= range.max && !hardest) {
+    const weight = lastWeight + step;
+    return {
+      weight,
+      reps: range.min,
+      message: `Completaste <strong>${range.max} reps</strong> en todas las series con ${lastWeight} kg. Hoy sube a <strong>${weight} kg</strong> y empieza en ${range.min} reps.`
+    };
+  }
+
+  if (hardest && minReps < range.min) {
+    const weight = Math.max(0, lastWeight - 2.5);
+    return {
+      weight,
+      reps: range.min,
+      message: `Con ${lastWeight} kg no llegaste a ${range.min} reps y fue muy duro. Baja a <strong>${weight} kg</strong> para cuidar la técnica.`
+    };
+  }
+
+  const reps = Math.min(range.max, Math.max(range.min, minReps + 1));
+  return {
+    weight: lastWeight,
+    reps,
+    message: `Mantén <strong>${lastWeight} kg</strong> y busca <strong>${reps} reps</strong> en todas las series. Cuando llegues a ${range.max} en todas, subes carga.`
+  };
 }
 
 function handleNextExerciseClick() {
@@ -1174,6 +1326,7 @@ function playSynthBeep(frequency, duration) {
 // ==========================================
 
 function renderMetricsPanel() {
+  renderCardioGoal();
   // Renderizar gráfico con la métrica seleccionada
   const canvas = document.getElementById('weight-chart');
   const selectedMetric = document.getElementById('metrics-chart-select')?.value || 'weight';
@@ -1384,7 +1537,7 @@ function renderReportsPanel() {
 
   // 3. Dibujar volumen de trabajo
   if (typeof renderVolumeChart === 'function') {
-    renderVolumeChart(volumeCanvas, state.history);
+    renderVolumeChart(volumeCanvas, strengthLogsOnly());
   }
 
   // 4. Dibujar fuerza al cambiar de ejercicio
@@ -1407,6 +1560,74 @@ function renderReportsPanel() {
   renderInBodyComparisonTable();
 }
 
+// Cardio libre (caminar, etc.) añadido a mano en Métricas
+function isExtraCardio(log) {
+  return log.exerciseId === 'cardio_extra';
+}
+
+// Objetivo semanal de cardio en minutos (orientativo: 150 min/semana)
+function cardioGoal() {
+  const g = Number(state.settings.cardioGoalMin);
+  return g > 0 ? g : 150;
+}
+
+// Minutos de cardio de la semana actual: rutina + cardio libre
+function cardioMinutesThisWeek() {
+  const cardioIds = new Set(state.routines.flatMap(r => r.exercises.filter(e => e.muscle === 'cardio').map(e => e.id)));
+  const thisWeek = getWeekStartKey(getLocalDateString());
+  return state.history
+    .filter(l => l.date && (cardioIds.has(l.exerciseId) || isExtraCardio(l)) && getWeekStartKey(l.date) === thisWeek)
+    .reduce((sum, l) => sum + (parseInt(l.reps) || 0), 0);
+}
+
+function renderCardioGoal() {
+  const valueEl = document.getElementById('cardio-week-value');
+  if (!valueEl) return;
+  const goal = cardioGoal();
+  const done = cardioMinutesThisWeek();
+  valueEl.textContent = `${done} / ${goal} min`;
+  document.getElementById('cardio-bar-fill').style.width = `${Math.min(100, (done / goal) * 100)}%`;
+  const goalInput = document.getElementById('input-cardio-goal');
+  if (goalInput && document.activeElement !== goalInput) goalInput.value = goal;
+}
+
+function saveCardioGoal(value) {
+  const g = parseInt(value);
+  state.settings.cardioGoalMin = g > 0 ? g : 150;
+  saveStateToStorage('settings');
+  renderCardioGoal();
+}
+
+function addExtraCardioFromInput() {
+  const input = document.getElementById('input-extra-cardio');
+  const minutes = parseInt(input.value);
+  if (!(minutes > 0)) {
+    alert('Introduce los minutos de cardio que has hecho.');
+    return;
+  }
+  state.history.push({
+    date: getLocalDateString(),
+    routineId: 'libre',
+    sessionId: Date.now(),
+    exerciseId: 'cardio_extra',
+    exerciseName: 'Cardio libre',
+    setIndex: 1,
+    reps: minutes,
+    weight: 0,
+    difficulty: 'facil'
+  });
+  saveStateToStorage('history');
+  input.value = '';
+  renderCardioGoal();
+  updateDashboard();
+}
+
+// Registros de fuerza (sin cardio)
+function strengthLogsOnly() {
+  const cardioIds = new Set(state.routines.flatMap(r => r.exercises.filter(e => e.muscle === 'cardio').map(e => e.id)));
+  return state.history.filter(log => !cardioIds.has(log.exerciseId) && !isExtraCardio(log));
+}
+
 // Calcula la progresión de un ejercicio a partir del historial
 function getExerciseProgress(ex) {
   const startWeight = calculateDynamicStartWeight(ex.startWeight, ex.muscle);
@@ -1424,24 +1645,11 @@ function getExerciseProgress(ex) {
   const maxWeight = series.length > 0 ? Math.max(...series) : 0;
 
   let lastDifficulty = null;
-  let lastWeightUsed = 0;
   if (exerciseLogs.length > 0) {
-    const sortedLogs = [...exerciseLogs].sort((a,b) => new Date(b.date) - new Date(a.date));
-    lastDifficulty = sortedLogs[0].difficulty || 'adecuado';
-    lastWeightUsed = sortedLogs[0].weight || 0;
+    const newest = [...exerciseLogs].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    lastDifficulty = newest.difficulty || 'adecuado';
   }
-
-  // Siguiente sugerencia (algoritmo entrenador virtual)
-  let recommendedWeight = startWeight;
-  if (lastWeightUsed > 0) {
-    if (lastDifficulty === 'facil') {
-      recommendedWeight = lastWeightUsed + (ex.muscle === 'biceps' || ex.muscle === 'shoulders' ? 1 : 2.5);
-    } else if (lastDifficulty === 'duro') {
-      recommendedWeight = Math.max(0, lastWeightUsed - 2.5);
-    } else {
-      recommendedWeight = lastWeightUsed;
-    }
-  }
+  const recommendedWeight = suggestNextLoad(ex).weight;
 
   return {
     startWeight,
@@ -1452,6 +1660,11 @@ function getExerciseProgress(ex) {
     lastDifficulty,
     recommendedWeight
   };
+}
+
+// Minutos acumulados de un ejercicio de cardio
+function totalMinutes(exerciseId) {
+  return state.history.filter(l => l.exerciseId === exerciseId).reduce((sum, l) => sum + (parseInt(l.reps) || 0), 0);
 }
 
 // Minigráfica SVG con la evolución del peso máximo por sesión
@@ -1475,11 +1688,11 @@ function renderReportKpis() {
   const container = document.getElementById('report-kpis');
   if (!container) return;
 
-  const trainingDays = [...new Set(state.history.map(log => (log.date || '').slice(0, 10)).filter(Boolean))];
+  const trainingDays = [...new Set(strengthLogsOnly().map(log => (log.date || '').slice(0, 10)).filter(Boolean))];
   const monthPrefix = getLocalDateString().slice(0, 7);
   const thisMonth = trainingDays.filter(d => d.startsWith(monthPrefix)).length;
 
-  const tonnage = state.history.reduce((sum, log) => sum + (parseInt(log.reps) || 0) * (parseFloat(log.weight) || 0), 0);
+  const tonnage = strengthLogsOnly().reduce((sum, log) => sum + (parseInt(log.reps) || 0) * (parseFloat(log.weight) || 0), 0);
   const tonnageText = tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)} t` : `${Math.round(tonnage)} kg`;
 
   // Ejercicios de fuerza con registros y cuántos superan su carga inicial
@@ -1564,7 +1777,7 @@ function renderStrengthProgress() {
         return `
           <div class="strength-row is-cardio">
             <span class="strength-name">${ex.name}</span>
-            <span class="strength-delta neutral-stable">${p.sessions} ${p.sessions === 1 ? 'sesión' : 'sesiones'}</span>
+            <span class="strength-delta neutral-stable">${totalMinutes(ex.id)} min</span>
             <span class="strength-meta">${muscleBadge}</span>
           </div>`;
       }
@@ -1657,7 +1870,22 @@ function exportDataToCSV() {
 // 8. CONFIGURACIÓN Y NOTIFICACIONES PUSH
 // ==========================================
 
+// Muestra en Ajustes si los datos se están guardando también en la nube
+function renderAccountPanel() {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  const texts = {
+    checking: 'Comprobando sincronización…',
+    synced: 'Sincronizado con la nube: tus datos se guardan también en Firebase.',
+    offline: 'Sin conexión a la nube: los datos se guardan solo en este dispositivo.',
+    'needs-login': 'La nube rechaza el acceso (revisa las reglas de Firestore). Tus datos siguen guardados en este dispositivo.',
+    error: 'Error de sincronización: los datos siguen guardados en este dispositivo.'
+  };
+  el.textContent = texts[syncStatus] || texts.error;
+}
+
 function renderSettingsPanel() {
+  renderAccountPanel();
   // 1. Seleccionar checkboxes de días
   state.settings.scheduleDays.forEach(day => {
     const cb = document.querySelector(`.day-checkbox-label input[value="${day}"]`);
@@ -1667,6 +1895,7 @@ function renderSettingsPanel() {
   // 2. Cargar hora
   document.getElementById('input-alert-time').value = state.settings.notifyTime;
   if (document.getElementById('input-user-height')) document.getElementById('input-user-height').value = state.settings.userHeight || 174;
+  if (document.getElementById('input-user-age')) document.getElementById('input-user-age').value = state.settings.userAge || '';
 
   // 3. Cargar toggles de audio/alerta
   document.getElementById('toggle-sound').checked = state.settings.soundEnabled;
@@ -1680,12 +1909,14 @@ function saveAppSettings() {
   });
 
   const userHeight = parseInt(document.getElementById('input-user-height').value) || 174;
+  const userAge = parseInt(document.getElementById('input-user-age').value) || null;
   const notifyTime = document.getElementById('input-alert-time').value;
   const soundEnabled = document.getElementById('toggle-sound').checked;
   const notificationsEnabled = document.getElementById('toggle-push').checked;
 
   state.settings.scheduleDays = selectedDays;
   state.settings.userHeight = userHeight;
+  state.settings.userAge = userAge;
   state.settings.notifyTime = notifyTime;
   state.settings.soundEnabled = soundEnabled;
   state.settings.notificationsEnabled = notificationsEnabled;
@@ -2003,7 +2234,8 @@ function calculateDynamicStartWeight(baseWeight, muscle) {
   if (!latestWeightRecord) return baseWeight;
 
   const currentWeight = latestWeightRecord.weight || 148;
-  const age = latestWeightRecord.age || 41;
+  // Edad real (Ajustes). No se usa la «edad corporal» del InBody. Sin dato: 40 = sin corrección
+  const age = state.settings.userAge || 40;
   const bodyFat = latestWeightRecord.fat || 40; 
 
   const lbm = currentWeight * (1 - (bodyFat / 100));
@@ -2053,7 +2285,7 @@ function renderCalendar() {
 
   // Rutinas hechas cada día del mes visible
   const workoutsByDay = {};
-  state.history.forEach(h => {
+  state.history.filter(h => !isExtraCardio(h)).forEach(h => {
     const day = (h.date || '').slice(0, 10);
     if (!day.startsWith(monthPrefix)) return;
     if (!workoutsByDay[day]) workoutsByDay[day] = new Set();

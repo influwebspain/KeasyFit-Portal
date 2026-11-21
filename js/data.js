@@ -2,11 +2,15 @@
 
 // Versión del plan de entrenamiento. Al subirla, la app sustituye las rutinas
 // antiguas (local y Firebase) por las de este archivo.
-const ROUTINES_VERSION = 2;
+// v3: series máximas de los ejercicios principales y unidad de intensidad del cardio.
+const ROUTINES_VERSION = 3;
 
 // PLAN DE RETORNO AL ENTRENAMIENTO — Joel Cabado (Personal Trainer)
 // 3 días/semana, cuerpo completo, máquinas/poleas/cardio.
 // Semanas 1-2: 2 series, RPE 5-6. Semanas 3-4: añadir 1 serie si se recupera bien.
+// maxSets: 3 marca los ejercicios principales ("2-3 series" en el PDF); las fases
+// y la progresión de cargas se calculan en app.js (PLAN_PHASES).
+// Cardio: reps = minutos iniciales, startWeight = intensidad inicial en intensityUnit.
 // Respetar siempre las indicaciones del fisioterapeuta y del equipo médico.
 const INITIAL_ROUTINES = [
   {
@@ -18,6 +22,7 @@ const INITIAL_ROUTINES = [
         id: "prensa_piernas",
         name: "Prensa de piernas",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "legs",
@@ -29,6 +34,7 @@ const INITIAL_ROUTINES = [
         id: "remo_sentado_maquina",
         name: "Remo sentado en máquina",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "back",
@@ -40,6 +46,7 @@ const INITIAL_ROUTINES = [
         id: "press_pecho_maquina",
         name: "Press de pecho en máquina",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "chest",
@@ -87,6 +94,7 @@ const INITIAL_ROUTINES = [
         reps: "10 min",
         rest: 0,
         muscle: "cardio",
+        intensityUnit: "nivel",
         startWeight: 1,
         notes: "10-20 minutos a ritmo cómodo. Sube primero la duración hasta 25-30 min antes de buscar intensidad. Sin HIIT.",
         patologyNotes: "Con propranolol la frecuencia cardíaca puede responder distinto: guíate por sensaciones (poder hablar en frases, sin mareo). Ajusta el sillín a la altura de la cadera."
@@ -102,6 +110,7 @@ const INITIAL_ROUTINES = [
         id: "extension_rodilla",
         name: "Extensión de rodilla en máquina",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "legs",
@@ -113,6 +122,7 @@ const INITIAL_ROUTINES = [
         id: "press_inclinado_maquina",
         name: "Press inclinado en máquina",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "chest",
@@ -124,6 +134,7 @@ const INITIAL_ROUTINES = [
         id: "remo_apoyo_pecho",
         name: "Remo con apoyo de pecho",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "back",
@@ -135,6 +146,7 @@ const INITIAL_ROUTINES = [
         id: "curl_femoral_dia2",
         name: "Curl femoral",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "legs",
@@ -171,6 +183,7 @@ const INITIAL_ROUTINES = [
         reps: "10 min",
         rest: 0,
         muscle: "cardio",
+        intensityUnit: "nivel",
         startWeight: 1,
         notes: "10-20 minutos a ritmo cómodo. Prioriza duración antes que intensidad. Sin HIIT.",
         patologyNotes: "Guiate por sensaciones, no solo por pulso (propranolol). Debes poder hablar en frases y no marearte."
@@ -186,6 +199,7 @@ const INITIAL_ROUTINES = [
         id: "prensa_piernas_dia3",
         name: "Prensa de piernas",
         sets: 2,
+        maxSets: 3,
         reps: "12",
         rest: 90,
         muscle: "legs",
@@ -197,6 +211,7 @@ const INITIAL_ROUTINES = [
         id: "jalon_neutro_dia3",
         name: "Jalón neutro o máquina dorsal",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "back",
@@ -208,6 +223,7 @@ const INITIAL_ROUTINES = [
         id: "press_pecho_maquina_dia3",
         name: "Press de pecho en máquina",
         sets: 2,
+        maxSets: 3,
         reps: "10-12",
         rest: 90,
         muscle: "chest",
@@ -255,6 +271,7 @@ const INITIAL_ROUTINES = [
         reps: "10 min",
         rest: 0,
         muscle: "cardio",
+        intensityUnit: "km/h",
         startWeight: 3,
         notes: "CAMINA, no corras. Ritmo en el que puedas hablar en frases. Puedes añadir 1-2% de inclinación si es cómodo.",
         patologyNotes: "Guiate por sensaciones (propranolol). Sin mareo ni falta de aire desproporcionada. Detente si aparece dolor torácico."

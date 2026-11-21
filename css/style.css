@@ -2315,6 +2315,54 @@ button.strength-row:hover {
   }
 }
 
+/* Objetivo semanal de cardio */
+.cardio-goal-card {
+  margin-bottom: 1rem;
+}
+
+.cardio-week-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardio-bar {
+  height: 8px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0.9rem 0;
+}
+
+.cardio-bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--primary-solid);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.cardio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.cardio-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 140px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* ==========================================
    10. HOJA DE ESTILOS DE IMPRESIÓN (PDF)
    ========================================== */
