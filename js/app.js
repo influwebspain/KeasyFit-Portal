@@ -2075,11 +2075,26 @@ function runTesseractOCR(imageSrc) {
         }
       }
     }
-  ).then(({ data: { text } }) => {
+  ).then(async ({ data: { text } }) => {
     console.log("=== TEXTO EXTRAÍDO POR OCR ===\n", text);
     
     // Analizar el texto con expresiones regulares
-    const parsedMetrics = parseAiLinkText(text);
+    const heightCm = state.settings.userHeight || null;
+    const parsedMetrics = parseAiLinkText(text, heightCm);
+
+    // Si falta la grasa visceral, se relee solo la tabla «Otros indicadores»
+    if (parsedMetrics.visceral === null) {
+      try {
+        statusLabel.textContent = 'Revisando tabla de indicadores...';
+        const cropUrl = await cropImageRegion(imageSrc, 0.69, 0.88);
+        const { data: { text: tableText } } = await Tesseract.recognize(cropUrl, 'spa');
+        console.log("=== TEXTO TABLA INDICADORES ===\n", tableText);
+        const extra = parseAiLinkText(tableText, heightCm);
+        if (extra.visceral !== null) parsedMetrics.visceral = extra.visceral;
+      } catch (e) {
+        console.warn('No se pudo releer la tabla de indicadores:', e);
+      }
+    }
     
     // Inyectar en formulario con efectos visuales
     injectParsedMetrics(parsedMetrics);
@@ -2115,7 +2130,7 @@ function runTesseractOCR(imageSrc) {
   }
 }
 
-function parseAiLinkText(text) {
+function parseAiLinkText(text, heightCm) {
   const result = {
     weight: null,
     bmi: null,
@@ -2159,7 +2174,47 @@ function parseAiLinkText(text) {
     }
   }
 
+  // Respaldos cuando el OCR no lee el valor:
+  // - Grasa %: en la báscula, peso = masa magra + grasa (no depende de leer el %)
+  if (result.fat === null && result.weight && result.leanMass) {
+    const fat = ((result.weight - result.leanMass) / result.weight) * 100;
+    if (fat >= 3 && fat <= 70) result.fat = Math.round(fat * 10) / 10;
+  }
+  // - IMC: peso / altura² (solo si la altura está en Ajustes)
+  if (result.bmi === null && result.weight && heightCm) {
+    const bmi = result.weight / Math.pow(heightCm / 100, 2);
+    if (bmi >= 10 && bmi <= 80) result.bmi = Math.round(bmi * 10) / 10;
+  }
+  // - Grasa visceral: en la tabla "Otros indicadores", solo esta fila lleva "<N" como referencia
+  if (result.visceral === null) {
+    const ref = cleanText.match(/(\d{1,2})\s*<\s*\d{1,2}/);
+    if (ref) {
+      const v = parseInt(ref[1]);
+      if (v >= 1 && v <= 60) result.visceral = v;
+    }
+  }
+
   return result;
+}
+
+// Recorta una franja vertical de la imagen y la amplía (mejor lectura de tablas pequeñas)
+function cropImageRegion(src, yFrom, yTo) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const sy = Math.round(img.naturalHeight * yFrom);
+      const sh = Math.round(img.naturalHeight * (yTo - yFrom));
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth * 2;
+      canvas.height = sh * 2;
+      const ctx = canvas.getContext('2d');
+      ctx.filter = 'grayscale(100%)';
+      ctx.drawImage(img, 0, sy, img.naturalWidth, sh, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
 function injectParsedMetrics(metrics) {
